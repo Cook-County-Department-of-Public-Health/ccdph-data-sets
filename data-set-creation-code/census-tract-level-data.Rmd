@@ -65,7 +65,7 @@ cook_census_tracts %>% filter(jurisdiction == "CHI") %>% pull(population) %>% su
 place_pops %>% filter(NAME == "Chicago city, Illinois") %>% pull(value)
 #plot census tracts to see if organized correctly!!! -- check 9900.00
 
-write_csv(cook_census_tracts, "cook-county-census-tracts.csv")
+write_csv(cook_census_tracts, "../cook-county-census-tracts.csv")
 ```
 
 
