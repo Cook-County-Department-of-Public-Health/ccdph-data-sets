@@ -32,25 +32,25 @@ ccdph_census_population = function(variable){
 }
 
 #example- total population
-ccdph_census_population("P001001")
+# ccdph_census_population("P001001")
 
 #example- males under 5 + females under 5 = total under 5
-ccdph_census_population("P012003") + ccdph_census_population("P012027")
+# ccdph_census_population("P012003") + ccdph_census_population("P012027")
 
 #example all SEX BY AGE vars
-sex_by_age_vars = variables_sf1 %>% filter(concept == "SEX BY AGE") %>% pull(name)
-names(sex_by_age_vars) = variables_sf1 %>% filter(concept == "SEX BY AGE") %>% pull(label)
+# sex_by_age_vars = variables_sf1 %>% filter(concept == "SEX BY AGE") %>% pull(name)
+# names(sex_by_age_vars) = variables_sf1 %>% filter(concept == "SEX BY AGE") %>% pull(label)
 
-sex_by_age_vector = sapply(sex_by_age_vars, ccdph_census_population)
-sex_by_age_ccdph = cbind(names(sex_by_age_vector), sex_by_age_vector) %>%
-  as.tibble() %>%
-  set_colnames(c("group", "population")) %>%
-  mutate(sex = str_extract(group, "(Male|Female)"),
-         sex = ifelse(is.na(sex), "Total", sex),
-         age = gsub("^.*!!", "", group),
-         age = ifelse(age %in% c("Total", "Male", "Female"), "Total", age)
-  ) %>%
-  relocate(population, .after = last_col())
+# sex_by_age_vector = sapply(sex_by_age_vars, ccdph_census_population)
+# sex_by_age_ccdph = cbind(names(sex_by_age_vector), sex_by_age_vector) %>%
+#   as.tibble() %>%
+#   set_colnames(c("group", "population")) %>%
+#   mutate(sex = str_extract(group, "(Male|Female)"),
+#          sex = ifelse(is.na(sex), "Total", sex),
+#          age = gsub("^.*!!", "", group),
+#          age = ifelse(age %in% c("Total", "Male", "Female"), "Total", age)
+#   ) %>%
+#   relocate(population, .after = last_col())
 
 
 
