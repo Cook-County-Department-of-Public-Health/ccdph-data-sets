@@ -53,4 +53,32 @@ ccdph_census_population = function(variable){
 #   relocate(population, .after = last_col())
 
 
+ccdph_acs_population = function(variable, year = 2019, survey = "acs5"){
+  all_cook  = get_acs(geography = "county", survey = survey,
+                      state = "IL", county = "Cook",
+                      year = year, variables = variable) %>%
+    pull(estimate)
+  
+  ooj  = get_acs(geography = "place",  survey = survey,
+                 state = "IL", 
+                 year = year, variables = variable) %>%
+    filter(NAME %in% c("Chicago city, Illinois",
+                       "Evanston city, Illinois",
+                       "Skokie village, Illinois",
+                       "Oak Park village, Illinois"
+    )) %>%
+    pull(estimate) %>%
+    sum()
+  
+  ooj2  = get_acs(geography = "county subdivision",  survey = survey,
+                  state = "IL", county = "Cook",
+                  year = year, variables = variable) %>%
+    filter(NAME == "Stickney township, Cook County, Illinois") %>%
+    pull(estimate)
+  
+  ccdph = all_cook - ooj - ooj2
+  return(ccdph)
+  
+}
+
 
