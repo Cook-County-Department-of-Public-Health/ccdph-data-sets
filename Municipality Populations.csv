@@ -1,131 +1,138 @@
-Municipality,Population2010
-Alsip,19277
-Arlington Heights,75101
-Barrington,5631
-Barrington Hills,2168
-Bartlett,16797
-Bedford Park,580
-Bellwood,19071
-Bensenville,0
-Berkeley,5209
-Berwyn,56657
-Blue Island,23706
-Bridgeview,16446
-Broadview,7932
-Brookfield,18978
-Buffalo Grove,13644
-Burbank,28925
-Burnham,4206
-Burr Ridge,3840
-Calumet City,37042
-Calumet Park,7835
-Chicago Heights,30276
-Chicago Ridge,14305
-Cicero,83891
-Country Club Hills,16541
-Countryside,5895
-Crestwood,10950
-Deerfield,172
-Des Plaines,58364
-Dixmoor,3644
-Dolton,23153
-East Dundee,0
-East Hazel Crest,1543
-Elgin,24032
-Elk Grove Village,33127
-Elmwood Park,24883
-Evanston,74486
-Evergreen Park,19852
-Flossmoor,9464
-Ford Heights,2763
-Forest Park,14167
-Forest View,698
-Frankfort,0
-Franklin Park,18333
-Glencoe,8723
-Glenview,44692
-Glenwood,8969
-Golf,500
-Hanover Park,20636
-Harvey,25282
-Harwood Heights,8612
-Hazel Crest,14100
-Hickory Hills,14049
-Hillside,8157
-Hinsdale,2227
-Hodgkins,1897
-Hoffman Estates,51895
-Hometown,4349
-Homewood,19323
-Indian Head Park,3809
-Inverness,7399
-Justice,12926
-Kenilworth,2513
-La Grange,15550
-La Grange Park,13579
-Lansing,28331
-Lemont,15987
-Lincolnwood,12590
-Lynwood,9007
-Lyons,10729
-McCook,228
-Markham,12508
-Matteson,19009
-Maywood,24090
-Melrose Park,25411
-Merrionette Park,1900
-Midlothian,14819
-Morton Grove,23270
-Mount Prospect,54167
-Niles,29803
-Norridge,14572
-Northbrook,33170
-Northfield,5420
-Northlake,12323
-North Riverside,6672
-Oak Forest,27962
-Oak Lawn,56690
-Oak Park,51878
-Olympia Fields,4988
-Orland Hills,7149
-Orland Park,56583
-Palatine,68557
-Palos Heights,12515
-Palos Hills,17484
-Palos Park,4847
-Park Forest,18672
-Park Ridge,37480
-Phoenix,1964
-Posen,5987
-Prospect Heights,16256
-Richton Park,13646
-Riverdale,13549
-River Forest,11172
-River Grove,10227
-Riverside,8875
-Robbins,5337
-Rolling Meadows,24099
-Roselle,3723
-Rosemont,4202
-Sauk Village,10506
-Schaumburg,74227
-Schiller Park,11793
-Skokie,64784
-South Barrington,4565
-South Chicago Heights,4139
-South Holland,22030
-Steger,4103
-Stickney,6786
-Stone Park,4946
-Streamwood,39858
-Summit,11054
-Thornton,2338
-Tinley Park,49236
-University Park,0
-Westchester,16718
-Western Springs,12975
-Wheeling,37648
-Willow Springs,5524
-Wilmette,27087
-Winnetka,12187
-Worth,10789
+Municipality,Population2010,District,Partial,ExcludeFromAnalysis
+Alsip,19277,Southwest,FALSE,FALSE
+Arlington Heights,75101,North,FALSE,FALSE
+Barrington,5631,North,TRUE,FALSE
+Barrington Hills,2168,North,TRUE,FALSE
+Bartlett,16797,North,TRUE,FALSE
+Bedford Park,580,Southwest,FALSE,FALSE
+Bellwood,19071,West,FALSE,FALSE
+Bensenville,0,West,TRUE,TRUE
+Berkeley,5209,West,FALSE,FALSE
+Berwyn,56657,West,FALSE,FALSE
+Blue Island,23706,Southwest,FALSE,FALSE
+Bridgeview,16446,Southwest,FALSE,FALSE
+Broadview,7932,West,FALSE,FALSE
+Brookfield,18978,West,FALSE,FALSE
+Buffalo Grove,13644,North,TRUE,FALSE
+Burbank,28925,OOJ,FALSE,FALSE
+Burnham,4206,South,FALSE,FALSE
+Burr Ridge,3840,West,TRUE,FALSE
+Calumet City,37042,South,FALSE,FALSE
+Calumet Park,7835,Southwest,FALSE,FALSE
+Chicago,2695598,OOJ,FALSE,FALSE
+Chicago Heights,30276,South,FALSE,FALSE
+Chicago Ridge,14305,Southwest,FALSE,FALSE
+Cicero,83891,West,FALSE,FALSE
+Country Club Hills,16541,South,FALSE,FALSE
+Countryside,5895,West,FALSE,FALSE
+Crestwood,10950,Southwest,FALSE,FALSE
+Crete,0,South,TRUE,TRUE
+Deer Park,17,North,TRUE,TRUE
+Deerfield,172,North,TRUE,TRUE
+Des Plaines,58364,North,FALSE,FALSE
+Dixmoor,3644,South,FALSE,FALSE
+Dolton,23153,South,FALSE,FALSE
+East Dundee,0,North,TRUE,TRUE
+East Hazel Crest,1543,South,FALSE,FALSE
+Elgin,24032,North,TRUE,FALSE
+Elk Grove Village,33127,North,FALSE,FALSE
+Elmhurst,0,West,TRUE,TRUE
+Elmwood Park,24883,West,FALSE,FALSE
+Evanston,74486,OOJ,FALSE,FALSE
+Evergreen Park,19852,Southwest,FALSE,FALSE
+Flossmoor,9464,South,FALSE,FALSE
+Ford Heights,2763,South,FALSE,FALSE
+Forest Park,14167,West,FALSE,FALSE
+Forest View,698,West,FALSE,FALSE
+Frankfort,0,South,TRUE,TRUE
+Franklin Park,18333,West,FALSE,FALSE
+Glencoe,8723,North,FALSE,FALSE
+Glenview,44692,North,FALSE,FALSE
+Glenwood,8969,South,FALSE,FALSE
+Golf,500,North,FALSE,FALSE
+Hanover Park,20636,North,TRUE,FALSE
+Harvey,25282,South,FALSE,FALSE
+Harwood Heights,8612,West,FALSE,FALSE
+Hazel Crest,14100,South,FALSE,FALSE
+Hickory Hills,14049,Southwest,FALSE,FALSE
+Hillside,8157,West,FALSE,FALSE
+Hinsdale,2227,West,TRUE,FALSE
+Hodgkins,1897,West,FALSE,FALSE
+Hoffman Estates,51895,North,FALSE,FALSE
+Homer Glen,0,Southwest,TRUE,TRUE
+Hometown,4349,Southwest,FALSE,FALSE
+Homewood,19323,South,FALSE,FALSE
+Indian Head Park,3809,West,FALSE,FALSE
+Inverness,7399,North,FALSE,FALSE
+Justice,12926,Southwest,FALSE,FALSE
+Kenilworth,2513,North,FALSE,FALSE
+La Grange,15550,West,FALSE,FALSE
+La Grange Park,13579,West,FALSE,FALSE
+Lansing,28331,South,FALSE,FALSE
+Lemont,15987,Southwest,TRUE,FALSE
+Lincolnwood,12590,North,FALSE,FALSE
+Lynwood,9007,South,FALSE,FALSE
+Lyons,10729,West,FALSE,FALSE
+Markham,12508,South,FALSE,FALSE
+Matteson,19009,South,FALSE,FALSE
+Maywood,24090,West,FALSE,FALSE
+McCook,228,West,FALSE,FALSE
+Melrose Park,25411,West,FALSE,FALSE
+Merrionette Park,1900,Southwest,FALSE,FALSE
+Midlothian,14819,South,FALSE,FALSE
+Morton Grove,23270,North,FALSE,FALSE
+Mount Prospect,54167,North,FALSE,FALSE
+Niles,29803,North,FALSE,FALSE
+Norridge,14572,West,FALSE,FALSE
+North Riverside,6672,West,FALSE,FALSE
+Northbrook,33170,North,FALSE,FALSE
+Northfield,5420,North,FALSE,FALSE
+Northlake,12323,West,FALSE,FALSE
+Oak Brook,7,West,TRUE,TRUE
+Oak Forest,27962,South,FALSE,FALSE
+Oak Lawn,56690,Southwest,FALSE,FALSE
+Oak Park,51878,OOJ,FALSE,FALSE
+Olympia Fields,4988,South,FALSE,FALSE
+Orland Hills,7149,Southwest,FALSE,FALSE
+Orland Park,56583,Southwest,TRUE,FALSE
+Palatine,68557,North,FALSE,FALSE
+Palos Heights,12515,Southwest,FALSE,FALSE
+Palos Hills,17484,Southwest,FALSE,FALSE
+Palos Park,4847,Southwest,FALSE,FALSE
+Park Forest,18672,South,TRUE,FALSE
+Park Ridge,37480,North,FALSE,FALSE
+Phoenix,1964,South,FALSE,FALSE
+Posen,5987,South,FALSE,FALSE
+Prospect Heights,16256,North,FALSE,FALSE
+Richton Park,13646,South,FALSE,FALSE
+River Forest,11172,West,FALSE,FALSE
+River Grove,10227,West,FALSE,FALSE
+Riverdale,13549,South,FALSE,FALSE
+Riverside,8875,West,FALSE,FALSE
+Robbins,5337,South,FALSE,FALSE
+Rolling Meadows,24099,North,FALSE,FALSE
+Roselle,3723,North,TRUE,FALSE
+Rosemont,4202,West,FALSE,FALSE
+Sauk Village,10506,South,FALSE,FALSE
+Schaumburg,74227,North,FALSE,FALSE
+Schiller Park,11793,West,FALSE,FALSE
+Skokie,64784,OOJ,FALSE,FALSE
+South Barrington,4565,North,FALSE,FALSE
+South Chicago Heights,4139,South,FALSE,FALSE
+South Holland,22030,South,FALSE,FALSE
+Steger,4103,South,TRUE,FALSE
+Stickney,6786,OOJ,FALSE,FALSE
+Stone Park,4946,West,FALSE,FALSE
+Streamwood,39858,North,FALSE,FALSE
+Summit,11054,Southwest,FALSE,FALSE
+Thornton,2338,South,FALSE,FALSE
+Tinley Park,49236,South,TRUE,FALSE
+University Park,273,South,TRUE,FALSE
+Westchester,16718,West,FALSE,FALSE
+Western Springs,12975,West,FALSE,FALSE
+Wheeling,37642,North,TRUE,FALSE
+Willow Springs,5524,Southwest,FALSE,FALSE
+Wilmette,27087,North,FALSE,FALSE
+Winnetka,12187,North,FALSE,FALSE
+Woodridge,0,Southwest,TRUE,TRUE
+Worth,10789,Southwest,FALSE,FALSE
