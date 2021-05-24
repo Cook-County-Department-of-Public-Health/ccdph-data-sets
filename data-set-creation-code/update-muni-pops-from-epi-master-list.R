@@ -2,6 +2,10 @@
 library(tidyverse)
 library(readxl)
 
+
+#####ROUND 1######
+
+
 #load in current files from Github repo
 current_munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") 
 
@@ -38,10 +42,19 @@ write_csv(revised_munis, "S:/Enhanced Surveillance/R Package/ccdph-data-sets/Mun
   
   
   
-  
+#####ROUND 2###### 
 
+#load in current files from Github repo
+current_munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") 
 
+#load in 2010 muni pops from most recent epi master file (verified by Nhan)
+epi_pops <- read_excel('C:/Users/Kelley/Documents/CookCountyPopulationMaster_09_25_20_Nhan.xlsx', sheet = 1, range = "A1:K138") %>%
+  mutate(FIPS_Place = as.character(FIPS_Place),
+         CensusPlaceCode = ifelse(nchar(FIPS_Place) == 4, paste0(0, FIPS_Place), FIPS_Place)) %>%
+  select(NAME, CensusPlaceCode)
 
+revised_munis <- full_join(current_munis, epi_pops, by = c("Municipality" = "NAME")) 
 
-
+#re-save github repo file
+write_csv(revised_munis, "Municipality Populations.csv")  
 
