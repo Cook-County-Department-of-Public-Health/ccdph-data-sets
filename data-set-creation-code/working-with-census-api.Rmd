@@ -1,0 +1,128 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+```
+
+## Pull table B01001 (sex by age) from 5 year ACS for all CCDPH municipalities
+
+```{r acs_b01001}
+
+#load in ccdph muni file with place code
+munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
+  #filter(ExcludeFromAnalysis == F) %>%   
+  mutate(CensusPlaceCode = ifelse(nchar(CensusPlaceCode) == 4, paste0("0", CensusPlaceCode), CensusPlaceCode))
+
+#load in ACS variable names to match with codes
+acs_vars <- fromJSON("https://api.census.gov/data/2019/acs/acs5/variables") %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+#Create empty list to store place data
+acs_age_pops_muni <- list()
+
+#loop through munis list to pull data
+for (i in 1:nrow(munis)) {
+  
+  #determine if partial place string needed
+  partial <- munis[[i, "Partial"]]
+  
+  #extract place code  -- NOTE: ifelse should not necessary if performed when importing the muni file, remove after next test
+  #place_code <- as.character(munis[[i, "CensusPlaceCode"]] %>% ifelse(nchar(.) == 4, paste0("0", .), .))
+  place_code <- munis[[i, "CensusPlaceCode"]]
+  
+  #construct api call - different string needed for if pulling for only part of town within cook county
+  if (partial) {
+    api <- paste0("https://api.census.gov/data/2019/acs/acs5?get=NAME,group(B01001)&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+  } else {
+    api <- paste0("https://api.census.gov/data/2019/acs/acs5?get=NAME,group(B01001)&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
+  }
+  
+  #pull data
+  town_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("*E$", variable)) %>%    #keep only population estimates, can modify if margins of error required as well
+    left_join(acs_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code))
+  
+  #add results to list
+  acs_age_pops_muni[[i]] <- town_pull
+  
+}
+
+#combine separate town files into one
+acs_age_pops_muni <- bind_rows(acs_age_pops_muni)
+
+#QUALITY CHECK -- make sure sum of pops add up to the whole
+check_pops <- acs_age_pops_muni %>%
+  filter(!variable %in% c("B01001_001E", "B01001_002E", "B01001_026E"))  %>% #remove total pop, total male, total female 
+  group_by(NAME) %>%
+  summarize(total_pop_calc = sum(as.numeric(estimate))) %>%  #sum all mutually exclusive male and female age groups for calculated total pop
+  ungroup() %>%
+  left_join(filter(acs_age_pops_muni, variable == "B01001_001E")) %>%
+  mutate(diff = total_pop_calc - as.numeric(estimate))  #verify all diff values equal zero
+
+#QULAITY CHECK -- make sure place code matching expected name from muni file 
+name_compare <- acs_age_pops_muni %>%
+  filter(variable == "B01001_001E") %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(clean_census_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_census_name = gsub("^.*, ", "", clean_census_name),
+         fips_check = trimws(clean_census_name) == trimws(Municipality)) %>%
+  select(NAME, CensusPlaceCode, clean_census_name, Municipality, fips_check)
+
+#QULAITY CHECK -- compare ACS total pops to decennial total pops to check for any wild discrepancies
+total_pop_compare <- acs_age_pops_muni %>%
+  filter(variable == "B01001_001E") %>%
+  mutate(estimate = as.numeric(estimate)) %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(diff = estimate - Population2010,
+         percent_change = ((estimate - Population2010) / Population2010) * 100,
+         percent_change = round(percent_change, 2),
+         percent_change_abs = abs(percent_change)) %>%
+  select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff, percent_change, percent_change_abs) 
+
+
+#Store data set for future use -- modify storage location
+#write_csv(acs_age_pops_muni, "acs-5yr-2019-age-sex-by-muni.csv")
+
+
+```
+
+
+```{r general_examples}
+
+#pull decennial variable for all of cook county
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county:031&in=state:17&key=", key_get("census-api-key")))
+
+#pull decennial variable for place within cook county -- NOTE:seems like "in=state:" clause is necessary to get data
+#whole muni
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=place:01010&in=state:17&key=", key_get("census-api-key")))
+#partial muni
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20place:03883&key=", key_get("census-api-key")))
+
+#pull single estimate from ACS (rather than group as above)
+fromJSON(paste0("https://api.census.gov/data/2019/acs/acs5?get=B01001_001E,NAME&for=place:01010&in=state:17&key=", key_get("census-api-key")))
+
+
+
+```
+
+
