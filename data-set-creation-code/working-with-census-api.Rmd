@@ -290,7 +290,7 @@ total_pop_compare <- dec_race_pops_muni %>%
 #pull decennial variable for all of cook county
 fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county:031&in=state:17&key=", key_get("census-api-key")))
 
-#pull decennial variable for place within cook county -- NOTE:seems like "in=state:" clause is necessary to get data
+#pull decennial variable for place within cook county -- NOTE:place requires "in=state:" clause to get data
 #whole muni
 fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=place:01010&in=state:17&key=", key_get("census-api-key")))
 #partial muni
@@ -301,6 +301,15 @@ fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P12)&fo
 
 #pull single estimate from ACS (rather than group as above)
 fromJSON(paste0("https://api.census.gov/data/2019/acs/acs5?get=B01001_001E,NAME&for=place:01010&in=state:17&key=", key_get("census-api-key")))
+
+#pull decennial variable for ZCTA
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=zip%20code%20tabulation%20area:60004&key=", key_get("census-api-key")))
+
+#pull decennial variable for part of ZCTA in Cook
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):60466&key=", key_get("census-api-key")))
+
+#pull decennial variable for part of ZCTA in Cook
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):*&key=", key_get("census-api-key")))
 
 
 
