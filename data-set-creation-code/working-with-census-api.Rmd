@@ -100,8 +100,20 @@ total_pop_compare <- acs_age_pops_muni %>%
   select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff, percent_change, percent_change_abs) 
 
 
-#Store data set for future use -- modify storage location
-#write_csv(acs_age_pops_muni, "acs-5yr-2019-age-sex-by-muni.csv")
+#Store data set in github repository
+#Format determined from consensus discussion in inter-epi group
+acs_age_pop_muni_clean <- acs_age_pop_muni %>%
+  filter(!variable %in% c("B01001_001E", "B01001_002E", "B01001_026E"))  %>% #remove totals
+  mutate(label = gsub("Estimate!!Total:!!", "", label)) %>%
+  separate(label, into = c("sex", "age"), sep = ":!!") %>%
+  select(census_name = NAME,
+         census_place_code = CensusPlaceCode, 
+         variable,
+         sex,
+         age,
+         estimate)
+
+write_csv(acs_age_pops_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
 
 
 ```
@@ -189,8 +201,20 @@ total_pop_compare <- dec_age_pops_muni %>%
   select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff) 
 
 
-#Store data set for future use -- modify storage location
-#write_csv(dec_age_pops_muni, "decennial-2010-age-sex-by-muni.csv")
+#Store data set in github repository
+#Format determined from consensus discussion in inter-epi group
+dec_age_pops_muni_clean <- dec_age_pops_muni %>%
+  filter(!variable %in% c("P012001", "P012002", "P012026"))  %>% #remove total pop, total male, total female 
+  mutate(label = gsub("Total!!", "", label)) %>%
+  separate(label, into = c("sex", "age"), sep = "!!") %>%
+  select(census_name = NAME,
+         census_place_code = CensusPlaceCode, 
+         variable,
+         sex,
+         age,
+         estimate)
+
+write_csv(dec_age_pops_muni_clean, "decennial-2010-age-sex-by-muni.csv")
 
 ```
 
@@ -215,7 +239,7 @@ dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf1/variables") %>%
 dec_race_pops_muni_list <- list()
 
 #loop through munis list to pull data
-for (i in 61:nrow(munis)) {
+for (i in 1:nrow(munis)) {
   
   #determine if partial place string needed
   partial <- munis[[i, "Partial"]]
@@ -279,6 +303,20 @@ total_pop_compare <- dec_race_pops_muni %>%
 
 #Store data set for future use -- modify storage location
 #write_csv(dec_race_pops_muni, "decennial-2010-race-by-muni.csv")
+#Store data set in github repository
+#Format determined from consensus discussion in inter-epi group
+dec_race_pops_muni_clean <- dec_race_pops_muni %>%
+  filter(!variable %in% c("P005001", "P005002", "P005010"))  %>% #remove total pop, total non-hispanic, total hispanic  
+  mutate(label = gsub("Total!!", "", label)) %>%
+  separate(label, into = c("ethnicity", "race"), sep = "!!") %>%
+  select(census_name = NAME,
+         census_place_code = CensusPlaceCode, 
+         variable,
+         ethnicity,
+         race,
+         estimate)
+
+write_csv(dec_age_pops_muni_clean, "decennial-2010-race-ethnicity-by-muni.csv")
 
 
 ```
@@ -309,7 +347,9 @@ fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=z
 fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):60466&key=", key_get("census-api-key")))
 
 #pull decennial variable for part of ZCTA in Cook
-fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):*&key=", key_get("census-api-key")))
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):60134&key=", key_get("census-api-key")))
+
+#try pulling for all Illinois (if error then skip, else return -- purrr version of try)
 
 
 
