@@ -21,7 +21,7 @@ library(janitor)
 
 ## Pull table B01001 (sex by age) from 5 year ACS for all CCDPH municipalities
 
-```{r acs_b01001}
+```{r acs_age_sex_muni}
 
 #load in ccdph muni file with place code
 munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
@@ -113,7 +113,7 @@ acs_age_pop_muni_clean <- acs_age_pop_muni %>%
          age,
          estimate)
 
-write_csv(acs_age_pops_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
+write_csv(acs_age_pop_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
 
 
 ```
@@ -122,7 +122,7 @@ write_csv(acs_age_pops_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
 
 *Note: API call for partial Homer Glen fails - not sure why. Call works for 2019 5 YR ACS (0 people within Cook County). Maybe decennial doesn't have any part of it in Cook County?  Filter out for now.*
 
-```{r sf1_age_sex}
+```{r sf1_age_sex_muni}
 
 #load in ccdph muni file with place code
 munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
@@ -222,7 +222,7 @@ write_csv(dec_age_pops_muni_clean, "decennial-2010-age-sex-by-muni.csv")
 ## Pull table P5 (Hispanic or Latino Origin by Race) from decennial 2010 summary file 1 for all CCDPH municipalities
 
 
-```{r sf1_race}
+```{r sf1_race_muni}
 
 #load in ccdph muni file with place code
 munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
@@ -296,7 +296,7 @@ name_compare <- dec_race_pops_muni %>%
 #QULAITY CHECK -- compare ACS total pops to decennial total pops to check for any wild discrepancies
 #NOTE: when pulling 2020 data, may want to adapt this quality check to compare 2020 decennial to 2010 decennial for wild discrepancies
 total_pop_compare <- dec_race_pops_muni %>%
-  filter(variable == "P00501") %>%
+  filter(variable == "P005001") %>%
   left_join(munis, by = "CensusPlaceCode") %>%
   mutate(diff = estimate - Population2010) %>%
   select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff) 
@@ -309,18 +309,73 @@ dec_race_pops_muni_clean <- dec_race_pops_muni %>%
   filter(!variable %in% c("P005001", "P005002", "P005010"))  %>% #remove total pop, total non-hispanic, total hispanic  
   mutate(label = gsub("Total!!", "", label)) %>%
   separate(label, into = c("ethnicity", "race"), sep = "!!") %>%
+  mutate(clean_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_name = gsub("^.*, ", "", clean_name)) %>%
   select(census_name = NAME,
+         clean_name,
          census_place_code = CensusPlaceCode, 
          variable,
          ethnicity,
          race,
          estimate)
 
-write_csv(dec_age_pops_muni_clean, "decennial-2010-race-ethnicity-by-muni.csv")
+write_csv(dec_race_pops_muni_clean, "decennial-2010-race-ethnicity-by-muni.csv")
 
 
 ```
 
+
+```{r sf1_total_zcta}
+
+#import current zip code file
+current_zips <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Suburban%20Cook%20Zip%20Codes.csv?raw=TRUE") %>% 
+  clean_names() %>%
+  mutate(zip_code = as.character(zip_code))
+
+#list zctas in illinois (note:only one IL ZCTA crosses state lines, down state so not of concern for CCDPH)
+zcta_il <- fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=zip%20code%20tabulation%20area%20(or%20part):*&in=state:17&key=", key_get("census-api-key"))) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>%
+  select(zcta = `zip code tabulation area (or part)`,
+         population = P001001)
+
+#function to pull pop in cook
+get_partial <- function(zcta){
+  
+  value <- fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", zcta, "&key=", key_get("census-api-key")))[2,1]
+  
+  return(as.numeric(value))
+  
+}
+
+#Note: code below works but is very slow (~25 minutes); might want to for loop with try() at some point
+zcta_pops <- zcta_il %>%
+  rowwise() %>%
+  mutate(population_cook = possibly(get_partial, otherwise = NA)(zcta))
+
+zcta_pops_clean <- zcta_pops %>%
+  drop_na(population_cook) %>%
+  mutate(population = as.numeric(population),
+         percent_in_cook = (population_cook / population) * 100,
+         percent_in_cook = round(percent_in_cook, 1),
+         partial = population != population_cook) %>%
+  full_join(current_zips, by = c("zcta" = "zip_code")) %>%
+  mutate(primary_city = case_when(!is.na(primary_city) ~ primary_city,
+                                  grepl("^606.*", zcta) ~ "Chicago",
+                                  grepl("^603.*", zcta) ~ "Oak Park",
+                                  grepl("^602.*", zcta) ~ "Evanston",
+                                  grepl("^6007.*", zcta) ~ "Skokie",
+                                  zcta == "60459" ~ "Burbank")) %>%
+  rename(ccdph_district = district) %>%
+  select(-cross_borders, -population_zcta_2010) %>%
+  mutate(nssp_region = as.character(NA))
+
+#loop to pull partial pop
+
+#data manip to filter and merge
+
+
+```
 
 
 ```{r general_examples}
