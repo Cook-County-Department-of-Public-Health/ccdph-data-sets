@@ -366,13 +366,24 @@ zcta_pops_clean <- zcta_pops %>%
                                   grepl("^602.*", zcta) ~ "Evanston",
                                   grepl("^6007.*", zcta) ~ "Skokie",
                                   zcta == "60459" ~ "Burbank")) %>%
-  rename(ccdph_district = district) %>%
-  select(-cross_borders, -population_zcta_2010) %>%
-  mutate(nssp_region = as.character(NA))
-
-#loop to pull partial pop
-
-#data manip to filter and merge
+  mutate(district = ifelse(is.na(district) & primary_city %in% c("Chicago", "Oak Park", "Evanston", "Skokie", "Stickney", "Burbank", "Forest View"), "OOJ", district)) %>%
+  #rename(ccdph_district = district) %>%
+  mutate(nssp_region = as.character(NA)) %>%
+  mutate(notes = case_when(zcta == "60007" ~ "borders cross into O'Hare and DuPage but all residents in Cook per census",
+                           zcta == "60402" ~ "part in Berwyn and part in Stickney Township")) %>%  #add institutional knowledge previously stored in previous zip code file's "cross_borders" field
+  select(-c(population_zcta_2010, cross_borders)) %>%
+  select(zip_code = zcta,
+         zcta_total_pop = population,
+         zcta_pop_in_cook = population_cook,
+         percent_pop_cook = percent_in_cook,
+         partial,
+         district,
+         primary_city,
+         nssp_region,
+         notes)
+  
+#write file to csv and manually fill in missing district and primary city for partial zips using melissa data
+write_csv(zcta_pops_clean, "decennial-2010-total-pop-zcta.csv")
 
 
 ```
