@@ -126,6 +126,16 @@ acs_age_pop_muni_clean <- acs_age_pops_muni %>%
 
 write_csv(acs_age_pop_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
 
+#Explore margins of error
+explore_moe <- acs_age_pop_muni_clean %>% 
+  mutate(estimate = as.numeric(as.character(estimate)), 
+         margin_of_error = as.numeric(as.character(margin_of_error)), 
+         moe_bigger = margin_of_error > estimate, 
+         moe_percent = (margin_of_error / estimate) * 100)
+
+explore_moe %>% filter(moe_bigger) %>% nrow() #16% of cells have MOEs larger than the estimate
+explore %>% filter(moe_percent > 50) %>% nrow() #45% of cells have MOEs larger than half the estimate
+
 
 ```
 
