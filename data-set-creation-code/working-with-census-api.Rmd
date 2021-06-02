@@ -58,7 +58,11 @@ for (i in 1:nrow(munis)) {
     as.data.frame() %>%
     row_to_names(row_number = 1) %>%
     pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
-    filter(grepl("*E$", variable)) %>%    #keep only population estimates, can modify if margins of error required as well
+    filter(grepl("*(E|M)$", variable)) %>%    #keep only population estimates and MOEs (see note below, no annonations present)
+    separate(variable, into = c("variable", "estimate_type"), sep = -1) %>%
+    pivot_wider(c(NAME, variable), names_from = estimate_type, values_from = estimate) %>%
+    rename(estimate = E, margin_of_error = M) %>%
+    mutate(variable = paste0(variable, "E")) %>%
     left_join(acs_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
     mutate(CensusPlaceCode = as.character(place_code))
   
@@ -69,6 +73,9 @@ for (i in 1:nrow(munis)) {
 
 #combine separate town files into one
 acs_age_pops_muni <- bind_rows(acs_age_pops_muni_list)
+
+#first exploration - see if any estimates annotated -- No annotations present, don't need to include in final loop
+#acs_age_pops_muni %>% filter(grepl("M", variable) & !is.na(estimate)) %>% View()
 
 #QUALITY CHECK -- make sure sum of pops add up to the whole
 check_pops <- acs_age_pops_muni %>%
@@ -102,16 +109,20 @@ total_pop_compare <- acs_age_pops_muni %>%
 
 #Store data set in github repository
 #Format determined from consensus discussion in inter-epi group
-acs_age_pop_muni_clean <- acs_age_pop_muni %>%
+acs_age_pop_muni_clean <- acs_age_pops_muni %>%
   filter(!variable %in% c("B01001_001E", "B01001_002E", "B01001_026E"))  %>% #remove totals
   mutate(label = gsub("Estimate!!Total:!!", "", label)) %>%
   separate(label, into = c("sex", "age"), sep = ":!!") %>%
+  mutate(clean_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_name = gsub("^.*, ", "", clean_name)) %>%
   select(census_name = NAME,
+         clean_name,
          census_place_code = CensusPlaceCode, 
          variable,
          sex,
          age,
-         estimate)
+         estimate,
+         margin_of_error)
 
 write_csv(acs_age_pop_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
 
