@@ -1,0 +1,130 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+```
+
+## Import current zip code file - columns for "district" and "notes" contain institutional knowledge / convention and must be retained and integrated into new file
+
+```{r current_zips}
+
+current_zips <- read_csv("decennial-2010-total-pop-zcta.csv") %>%
+  select(zip_code, 
+         district,
+         notes)
+
+```
+
+## Pull list of all Cook zips from Melissa data
+
+```{r pull_zip_list}
+
+#Note: error returned when pulling with jsonlite so using rjsonio instead
+melissa_cook_zips <- RJSONIO::fromJSON("https://www.melissa.com/v2/lookups/countyzip/state/?fips=17031&fmt=json") %>%
+  map(as.data.frame) %>% 
+  bind_rows() %>%
+  clean_names() %>%
+  mutate(primary_city = str_to_title(city),
+         zip = as.numeric(as.character(zip))) %>%
+  select(zip,
+         primary_city,
+         percent_addresses = percentage,  #per Melissa data, percentage reflects percent addresses in cook county
+         type)
+
+```
+
+## Pull total population from decennial 2010 summary file 1 for all ZCTAs that have population in Cook County
+
+```{r sf1_total_zcta}
+
+#import current zip code file
+current_zips <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Suburban%20Cook%20Zip%20Codes.csv?raw=TRUE") %>% 
+  clean_names() %>%
+  mutate(zip_code = as.character(zip_code))
+
+#list zctas in illinois (note:only one IL ZCTA crosses state lines, down state so not of concern for CCDPH)
+zcta_il <- fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=zip%20code%20tabulation%20area%20(or%20part):*&in=state:17&key=", key_get("census-api-key"))) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>%
+  select(zcta = `zip code tabulation area (or part)`,
+         population = P001001)
+
+#function to pull pop in cook
+get_partial <- function(zcta){
+  
+  value <- fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", zcta, "&key=", key_get("census-api-key")))[2,1]
+  
+  return(as.numeric(value))
+  
+}
+
+#Note: code below works but is very slow (~25 minutes); might want to for loop with try() at some point
+zcta_pops <- zcta_il %>%
+  rowwise() %>%
+  mutate(population_cook = possibly(get_partial, otherwise = NA)(zcta))
+
+zcta_pops_clean <- zcta_pops %>%
+  filter(!is.na(population_cook) | zcta %in% melissa_cook_zips$zip) %>%
+  mutate(across(c(zcta, population), ~as.numeric(as.character(.x)))) %>%
+  mutate(percent_pop = (population_cook / population) * 100,
+         percent_pop = round(percent_pop, 2),
+         partial_pop = population != population_cook) %>%
+  full_join(melissa_cook_zips, by = c("zcta" = "zip")) %>%
+  rename(zcta_2010_pop = population, zcta_2010_pop_cook = population_cook)
+
+```
+
+## Import NSSP region to zip code mappings
+
+```{r nssp}
+
+#add nssp zip code region to file (received June 2021, when 2020 data constructed, incorporate into code above)
+nssp <- readxl::read_excel("S:/Enhanced Surveillance/ESSENCE/NSSP/IL_Zipcode_Region_Mappings.xlsx") %>% 
+  clean_names() %>% 
+  select(-lat, -lon) %>%
+  filter(region %in% c("IL_Cook", "IL_Chicago") | zip_code %in% zcta_pops_clean$zcta)
+
+```
+
+## Combine all necessary pieces of information into final file
+
+```{r final}
+
+final_zips <- zcta_pops_clean %>%
+  full_join(current_zips, by = c("zcta" = "zip_code")) %>%
+  mutate(notes = case_when(is.na(notes) & type == "PO Boxes" ~ "PO Boxes per Melissa data",
+                           !is.na(notes) & type == "PO Boxes" ~ paste0(notes, "; PO Boxes per Melissa data"),
+                           TRUE ~ notes)) %>%
+  select(-type) %>%
+  full_join(nssp, by = c("zcta" = "zip_code")) %>%
+  mutate(primary_city = case_when(!is.na(primary_city) ~ primary_city,
+                                  grepl("^606.*", zcta) ~ "Chicago",
+                                  grepl("^603.*", zcta) ~ "Oak Park",
+                                  grepl("^602.*", zcta) ~ "Evanston"),
+         district = ifelse(is.na(district) & primary_city %in% c("Chicago", "Oak Park", "Evanston", "Skokie", "Stickney", "Burbank", "Forest View"), "OOJ", district)) 
+  select(zip_code = zcta,
+         zcta_2010_pop:district,
+         nssp_region = region,
+         notes) 
+
+#write csv and fill in missing information manually
+write_csv(final_zips, "cook-county-zip-codes.csv")
+  
+
+```
+

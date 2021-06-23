@@ -345,6 +345,7 @@ write_csv(dec_race_pops_muni_clean, "decennial-2010-race-ethnicity-by-muni.csv")
 
 ```
 
+## Pull total population from decennial 2010 summary file 1 for all ZCTAs that have population in Cook County
 
 ```{r sf1_total_zcta}
 
@@ -406,8 +407,16 @@ zcta_pops_clean <- zcta_pops %>%
 #write file to csv and manually fill in missing district and primary city for partial zips using melissa data
 write_csv(zcta_pops_clean, "decennial-2010-total-pop-zcta.csv")
 
+```
+
+## Pull single year age pops <20 for CCDPH jurisdiction
+
+```{r sf1_ccdph_single_age}
+
+
 
 ```
+
 
 
 ```{r general_examples}
