@@ -1,4 +1,7 @@
 #script to make sex by age table for all zctas in cook
+#pull acs data -> merge onto existing list of cook zips -> pivot to long format and clean
+#created 7/13 by rishi.kowalski@cookcountyhealth.org
+
 library(dplyr)
 library(censusapi)
 library(tidyr)
