@@ -1,0 +1,50 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+#set master API URL
+census_api <- "https://api.census.gov/data/2020/dec/pl"
+
+#store variables for master URL
+census_var_names <- fromJSON(paste0(census_api, "/variables")) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+
+```
+
+```{r state_pops}
+
+#pull pops from API
+state_pops <- fromJSON(paste0("https://api.census.gov/data/2020/dec/pl?get=NAME,P1_001N&for=state:*&key=", key_get("census-api-key"))) %>%
+    as.data.frame() %>%
+    row_to_names(row_number = 1) 
+
+#add abbreviations
+clean_states <- state_pops %>%
+  mutate(state = state.abb[match(NAME,state.name)]) %>%
+  mutate(state = case_when(NAME == "District of Columbia" ~ "DC",
+                           NAME == "Puerto Rico" ~ "PR",
+                           TRUE ~ state)) %>%
+  select(state, pop = P1_001N, state_name = NAME)
+
+#save file
+write_csv(clean_states, paste0(getwd(), "/2020/decennial-2020-us-state-totals.csv"))
+
+```
+

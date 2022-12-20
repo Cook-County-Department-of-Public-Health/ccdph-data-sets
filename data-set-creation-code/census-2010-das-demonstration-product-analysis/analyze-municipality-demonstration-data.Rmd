@@ -1,0 +1,586 @@
+---
+title: 'Analysis of 2010 DAS Demonstration Product Data for Municipalities'
+date: 'September 1, 2021'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F, fig.width = 10)
+
+library(tidyverse)
+library(keyring)
+library(plotly)
+library(kableExtra)
+library(skimr)
+
+downloads_path <- key_get("downloads_path")
+#key_set(downloads_path)   #if not already stored, store your downloads path using keyring
+
+
+```
+
+## Background and Data Sources
+
+In 2020 and 2021, the Census Bureau released several data products meant to demonstrate the effect of the Bureau's new Disclosure Avoidance System (DAS) on population counts (using 2010 census data). The final demonstration product using the same privacy parameters applied to the 2020 census data was released in June 2021. The University of Minnesota’s IPUMS National Historical Geographic Information System (NHGIS) volunteered to convert the Census Bureau's un-tabulated demonstration data into useful summary formats, linked to the published 2010 summary data. The intent of both organizations was for census data users to use these tabulated files to assess the impact of the DAS on their own local data.  NHGIS tabulated data is located [here](https://www.nhgis.org/privacy-protected-2010-census-demonstration-data#v20210608-files). Information on the DAS is located [here](https://www.census.gov/programs-surveys/decennial-census/decade/2020/planning-management/process/disclosure-avoidance/2020-das-development.html).
+
+<hr>
+<br>
+
+```{r muni_cleaning, eval = F}
+
+#Source file: NHGIS Vintage 2021-06-08 Nationwide Files Place
+
+#Target variables: H72001 (total pop), H73002 (Hispanic), H73006 (not Hispanic, Black alone), H73008 (not Hispanic, Asian alone); demonstration product variables are appended "_dp", published 2010 variables are appended "_sf"
+
+#Download zipped file of places data
+download.file("https://assets.nhgis.org/differential-privacy/v20210608/nhgis_ppdd_20210608_place.zip", paste0(downloads_path, "places.zip"))
+
+#Unzip file
+unzip(paste0(downloads_path, "places.zip"), exdir = sub("\\/$", "", downloads_path))
+
+#Import places data set, filter to Illinois and target variables
+places <- read_csv(paste0(downloads_path, "nhgis_ppdd_20210608_place.csv")) %>%
+  filter(state == 17) %>%
+  select(gisjoin,
+         name,
+         total_pop_dp = H72001_dp,
+         total_pop_sf = H72001_sf,
+         hispanic_dp = H73002_dp,
+         hispanic_sf = H73002_sf,
+         black_dp = H73006_dp,
+         black_sf = H73006_sf,
+         asian_dp = H73008_dp,
+         asian_sf = H73008_sf)
+
+#Import 2010 CCDPH muni file
+munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") 
+
+#Filter places dataset to CCDPH munis using census place code
+ccdph_places <- places %>%
+  mutate(CensusPlaceCode = as.numeric(substr(gisjoin, 5, 10))) %>%
+  right_join(munis)
+
+#Calculate absolute change and percent change for all variables of interest
+muni_comparison <- ccdph_places %>%
+  mutate(absolute_change_total = total_pop_dp - total_pop_sf,
+         percent_change_total = round(absolute_change_total / total_pop_sf * 100, 2),
+         absolute_change_hispanic = hispanic_dp - hispanic_sf,
+         percent_change_hispanic = round(absolute_change_hispanic / hispanic_sf * 100, 2),
+         absolute_change_black = black_dp - black_sf,
+         percent_change_black = round(absolute_change_black / black_sf * 100, 2),
+         absolute_change_asian = asian_dp - asian_sf,
+         percent_change_asian = round(absolute_change_asian / asian_sf * 100, 2),
+         across(contains("change"), abs, .names = "abs_{col}"))
+
+#Summary stats
+# max(muni_comparison$abs_absolute_change_total) #largest absolute change of all towns is 31 people (Chicago)
+# max(muni_comparison$abs_percent_change_total) #largest absolute percent change of all towns is 0.52%
+# mean(muni_comparison$absolute_change_total) #mean absolute change is -0.3 (no concerns for directionality)
+# mean(muni_comparison$percent_change_total) #mean percent change is 0.007% (no concerns for directionality)
+
+
+
+
+
+```
+
+## Total Municipality Population
+
+The mean absolute change in population between the published 2010 data and the demonstration product data is **-0.3 people**. The largest absolute change in population between the two files is for Chicago with an increase of **31 people** in the demonstration data. The mean percent change in population for all Cook County towns is **0.007%**. There are **0** towns with a percent change in total population of more than 5%. The town with the largest percent change in the demonstration total population counts is Bedford Park with a percent change of **0.52%**. These patterns are reflected in the box plots below.
+
+<br>
+
+**Conclusions: Total municipality populations are unlikely to be largely impacted by the 2020 DAS parameters and can be used without reservation.**
+
+<br>
+
+```{r total_muni_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~percent_change_total, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_total), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Total Municipality Population",
+         showlegend = FALSE
+        )
+
+```
+
+<br>
+
+```{r total_muni_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~percent_change_total, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_total), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Total Municipality Population by District",
+         showlegend = FALSE
+        )
+
+```
+
+<hr>
+<br>
+
+```{r hispanic_summary}
+
+#Summary stats
+# max(muni_comparison$abs_absolute_change_hispanic) 
+# mean(muni_comparison$absolute_change_hispanic) 
+# mean(muni_comparison$percent_change_hispanic)
+# skim(muni_comparison$percent_change_hispanic)
+
+hispanic_outliers <- muni_comparison %>%
+  filter(abs_percent_change_hispanic >= 5) %>%
+  select(Municipality, total_pop_sf, hispanic_sf, hispanic_dp, percent_change_hispanic)
+
+```
+
+## Hispanic/Latino Municipality Population
+
+The mean absolute change in the Hispanic/Latino population by municipality between the published 2010 data and the demonstration product data is **-0.12 people**. The largest absolute change in population between the two files is for Chicago with a decrease of **197 people** in the demonstration data. The mean percent change in the Hispanic/Latino population for all Cook County towns is **-0.48%**. There are **13** towns with a percent change in the Hispanic/Latino population of more than 5%. The town with the largest percent change in the demonstration Hispanic/Latino population counts is Robbins with a percent change of **-28.6%**. The median percent change is **0%** and the interquartile range is **[-1.04%, 0.82%]**. The number of outliers and IQR varies by public health district.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the Hispanic population at the municipal level largely balances out. This means we can be reasonably confident in the 2020 jurisdiction-level Hispanic/Latino population estimate, as calculated by the subtraction method. However, at the individual municipality level, while the majority of towns are within acceptable bounds for percent change, outliers do exist - some with very high levels of distortion. Outliers are more prevalent in areas where the Hispanic/Latino population is low. Calculation of rates for the Hispanic/Latino population at the municipal level should be avoided for the North and South District and must be accompanied by data caveats if performed. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
+
+<br>
+
+```{r hispanic_outliers}
+
+hispanic_outliers %>%
+  arrange(percent_change_hispanic) %>%
+  kable(caption = "Towns with >5% Change in Hispanic/Latino", 
+        col.names = c("Municipality", "Published Total", "Published H/L", "Demonstration H/L", "Percent Change")) %>%
+  kable_styling()
+
+```
+
+<br>
+
+```{r hispanic_muni_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~percent_change_hispanic, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_hispanic),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Hispanic/Latino Municipality Population",
+         showlegend = FALSE
+        )
+
+```
+
+<br>
+
+```{r hispanic_muni_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~percent_change_hispanic, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_hispanic), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Hispanic/Latino Municipality Population by District",
+         showlegend = FALSE
+        )
+
+```
+
+<hr>
+<br>
+
+```{r black_summary}
+
+#Summary stats
+# mean(muni_comparison$absolute_change_black) 
+# max(muni_comparison$abs_absolute_change_black) 
+# mean(muni_comparison$percent_change_black)
+# skim(muni_comparison$percent_change_black)
+
+black_outliers <- muni_comparison %>%
+  filter(abs_percent_change_black >= 5) %>%
+  select(Municipality, total_pop_sf, black_sf, black_dp, percent_change_black)
+
+```
+
+## Non-Hispanic Black Municipality Population
+
+The mean absolute change in the non-Hispanic Black or African American population by municipality between the published 2010 data and the demonstration product data is **2.8 people**. The largest absolute change in population between the two files is for Chicago with an increase of **90 people** in the demonstration data. The mean percent change in the non-Hispanic Black population for all Cook County towns is **-1.38%**. There are **25** towns with a percent change in the non-Hispanic Black population of more than 5%. The town with the largest percent change in the demonstration population data is Forest View with a percent change of **-40%**. The median percent change is **0%** and the interquartile range is **[-1.58%, 0.47%]**. The number of outliers and IQR varies by public health district.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the non-Hispanic Black population at the municipal level, though larger than for the Hispanic population, largely balances out. This means we can be reasonably confident in the 2020 jurisdiction-level non-Hispanic Black population estimate, as calculated by the subtraction method. However, at the individual municipality level, close to 1 in 5 towns have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where the non-Hispanic Black population is low. Calculation of rates for the non-Hispanic Black population at the municipal level should be advised against for towns outside of the South District. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
+
+<br>
+
+```{r black_outliers}
+
+black_outliers %>%
+  arrange(percent_change_black) %>%
+  kable(caption = "Towns with >5% Change in non-Hispanic Black Population", col.names = c("Municipality", "Published Total", "Published NHB", "Demonstration NHB", "Percent Change")) %>%
+  kable_styling()
+
+```
+
+<br>
+
+```{r black_muni_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~percent_change_black, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_black),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in non-Hispanic Black Municipality Population",
+         showlegend = FALSE
+        )
+
+```
+
+<br>
+
+```{r black_muni_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~percent_change_black, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_black), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in non-Hispanic Black Municipality Population by District",
+         showlegend = FALSE
+        )
+
+```
+
+<hr>
+<br>
+
+```{r asian_summary}
+
+#Summary stats
+# mean(muni_comparison$absolute_change_asian) 
+# max(muni_comparison$abs_absolute_change_asian) 
+# skim(muni_comparison$percent_change_asian)
+
+asian_outliers <- muni_comparison %>%
+  filter(abs_percent_change_asian >= 5) %>%
+  select(Municipality, total_pop_sf, asian_sf, asian_dp, percent_change_asian)
+
+```
+
+## Non-Hispanic Asian Municipality Population
+
+The mean absolute change in the non-Hispanic Asian population by municipality between the published 2010 data and the demonstration product data is **0.23 people**. The largest absolute change in population between the two files is for Skokie with an increase of **60 people** in the demonstration data. The mean percent change in the non-Hispanic Asian population for all Cook County towns is **1.59%**. There are **33** towns with a percent change in the non-Hispanic Asian population of more than 5%. The town with the largest percent change in the non-Hispanic Asian demonstration data is Hodgkins with a percent change of **100%**. The median percent change is **0%** and the interquartile range is **[-1.77%, 1.12%]**. The number of outliers and IQR varies by public health district.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the non-Hispanic Asian population at the municipal level, though larger than for the Hispanic population, largely balances out. This means we can be reasonably confident in the 2020 jurisdiction-level non-Hispanic Asian population estimate, as calculated by the subtraction method. However, at the individual municipality level, over 20% of towns have percent changes in population outside acceptable bounds. Outliers are present in all public health districts but distortions are particularly high in the South. Calculation of rates for the non-Hispanic Asian population at the municipal level should be avoided whenever possible. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
+
+<br>
+
+```{r asian_outliers}
+
+asian_outliers %>%
+    arrange(percent_change_asian) %>%
+  kable(caption = "Towns with >5% Change in non-Hispanic Asian Population", col.names = c("Municipality", "Published Total", "Published NHA", "Demonstration NHA", "Percent Change")) %>%
+  kable_styling()
+
+```
+
+<br>
+
+```{r asian_muni_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~percent_change_asian, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_asian),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in non-Hispanic Asian Municipality Population",
+         showlegend = FALSE
+        )
+
+```
+
+<br>
+
+```{r asian_muni_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~percent_change_asian, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_asian), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in non-Hispanic Asian Municipality Population by District",
+         showlegend = FALSE
+        )
+
+```
+
+<hr>
+<br>
+
+## District Population Estimates
+
+Based on the analyses above, individual municipalities may have race and ethnicity population estimates with significant distortion, but these distortions balance each other out when municipalities are aggregated to create jurisdiction level population estimates. CCDPH public health districts are also aggregations of municipalities. The table below displays the percent change in each type of population estimate at the district level.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings balances out for both total and all racial/ethnic population estimates. District-level population estimates can be used without reservation.**
+
+<br>
+
+```{r district_cleaning}
+
+district_comparison <- ccdph_places %>% 
+  filter(District != "OOJ" & ExcludeFromAnalysis == F) %>%
+  group_by(District) %>%
+  summarise(across(contains("_"), sum)) %>%
+  ungroup() %>%
+  mutate(absolute_change_total = total_pop_dp - total_pop_sf,
+         percent_change_total = round(absolute_change_total / total_pop_sf * 100, 2),
+         absolute_change_hispanic = hispanic_dp - hispanic_sf,
+         percent_change_hispanic = round(absolute_change_hispanic / hispanic_sf * 100, 2),
+         absolute_change_black = black_dp - black_sf,
+         percent_change_black = round(absolute_change_black / black_sf * 100, 2),
+         absolute_change_asian = asian_dp - asian_sf,
+         percent_change_asian = round(absolute_change_asian / asian_sf * 100, 2),
+         across(contains("change"), abs, .names = "abs_{col}"))
+
+district_comparison %>%
+  select(District, starts_with("percent_change")) %>%
+  mutate(across(starts_with("percent_change"), ~paste0(., "%"))) %>%
+  kable(caption = "Percent Change in Population Estimates by District", col.names = c("District", "Total", "Hispanic", "Non-Hispanic Black", "Non-Hispanic Asian")) %>%
+  kable_styling()
+
+```
+
+
+```{r non_exclusive_race, eval=FALSE}
+
+#Are race estimates any more accurate when ethnicity is disregarded?
+race_alone_comparison <- read_csv(paste0(downloads_path, "nhgis_ppdd_20210608_place.csv")) %>%
+  filter(state == 17) %>%
+  select(gisjoin,
+         name,
+         total_pop_dp = H72001_dp,
+         total_pop_sf = H72001_sf,
+         black_race_dp = H72004_dp,  #population of one race: black alone
+         black_race_sf = H72004_sf,
+         asian_race_dp = H72006_dp, #population of one race: asian alone
+         asian_race_sf = H72006_sf) %>%
+  mutate(CensusPlaceCode = as.numeric(substr(gisjoin, 5, 10))) %>%
+  right_join(munis) %>%
+  mutate(absolute_change_black = black_race_dp - black_race_sf,
+         percent_change_black = round(absolute_change_black / black_race_sf * 100, 2),
+         absolute_change_asian = asian_race_dp - asian_race_sf,
+         percent_change_asian = round(absolute_change_asian / asian_race_sf * 100, 2),
+         across(contains("change"), abs, .names = "abs_{col}"),
+         across(contains("change"), ~na_if(., NaN)),
+         across(contains("change"), ~na_if(., Inf)))
+         # across(contains("change"), ~replace(., is.nan(.), 0)),
+         # across(contains("change"), ~replace(., is.infinite(.), 200)))
+
+skim(muni_comparison$percent_change_black)
+skim(race_alone_comparison$percent_change_black)
+race_alone_comparison %>% filter(abs_percent_change_black >= 5) %>% nrow()
+
+skim(muni_comparison$percent_change_asian)
+skim(race_alone_comparison$percent_change_asian)
+race_alone_comparison %>% filter(abs_percent_change_asian >= 5) %>% nrow()
+
+#Comments: Using race alone gets slightly less divergent estimates for Black populations (compared to non-Hispanic Blacks) and slightly more divergent estimates for Asian populations (compared to non-Hispanic Asians). Conclusion: using race alone estimates does not result in better estimates than using race and ethnicity combined.
+
+
+```
+
+```{r pop_threshold, eval = F}
+
+#What are the implications of a minimum population thresholds?
+
+#How many towns would be censored for Hispanic rates
+sum(muni_comparison$hispanic_sf < 500) #34 (24%)
+sum(muni_comparison$hispanic_sf < 200) #17 (12%)
+sum(muni_comparison$hispanic_sf < 100) #4 (3%)
+
+#How many towns would be censored for NHB rates
+sum(muni_comparison$black_sf < 500) #59 (42%)
+sum(muni_comparison$black_sf < 200) #39 (28%)
+sum(muni_comparison$black_sf < 100) #26 (19%)
+
+#How many towns would be censored for NHA rates
+sum(muni_comparison$asian_sf < 500) #88 (63%)
+sum(muni_comparison$asian_sf < 200) #59 (42%)
+sum(muni_comparison$asian_sf < 100) #36 (26%)
+
+#At 500 minimum, can be reasonably sure rates will not be produced for any town with a pop distorted more than 10% but will likely be 1-3 towns with a sub-group pop distortioned between 5 and 10%
+#At 200 minimum, can be reasonably sure that majority of pops won't be distorted more than 10% but will likely be 1-3 towns with a sub-group distortion between 10 and 15%
+#At 100 minimum, can be reasonably sure that majority of rates won't be distorted more than 10% but will likely be 5-10 towns with a sub-group pop distorted between 10 and 20% and 1-3 towns with sub-group distortions higher than 20%
+
+
+#How much does a 5% change in population affect a rate?  10%? 15%? 20%?  High incidence? Low incidence?
+
+## HIGH INCIDENCE ##
+
+#NHA#
+covid_counts <- readRDS(paste0(key_get("local_shiny_path"), "cases.rds")) %>%
+  filter(raceEth == "Non-Hispanic Asian") %>%
+  group_by(clean_city) %>%
+  tally()
+
+devtools::source_url("https://github.com/Cook-County-Department-of-Public-Health/ccdph-functions/blob/master/miscellaneous-helper-functions.R?raw=TRUE")
+
+distortion_comparison <- muni_comparison %>%
+  select(Municipality, asian_sf) %>%
+  filter(asian_sf > 100) %>%
+  mutate(distorted_05 = round(asian_sf * 1.05),
+         distorted_10 = round(asian_sf * 1.1),
+         distorted_15 = round(asian_sf * 1.15),
+         distorted_20 = round(asian_sf * 1.2),
+         distorted_30 = round(asian_sf * 1.3)) %>%
+  full_join(covid_counts, by = c("Municipality" = "clean_city")) %>%
+  drop_na() %>%
+  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
+  select(-rate_n) 
+
+quants <- classInt::classIntervals(distortion_comparison$rate_asian_sf, 5, style = "quantile")$brks
+
+distortion_comparison_2 <- distortion_comparison %>%
+  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
+         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_asian_sf), .names = "change_{.col}")) %>%
+  select(-change_quant_rate_asian_sf)
+
+distortion_comparison_2 %>%
+  filter(asian_sf > 100 & asian_sf < 500) %>%
+  select(asian_sf, contains("quant")) %>%
+  arrange(asian_sf) %>% View()
+
+#For a high incidence disease, a 5% change in population for small sub-groups would put 21% (10 / 48) of these groups in a different quintile; a 10% change in pop would put 33% (16 /48) in a different quintile; a 15% change in pop would put 50% (24) in a different quintile; a 20% change would put 56% (27) in a different quintile. Quintiles are always off by 1 until you reach 30% pop change. 
+
+#NHB#
+covid_counts <- readRDS(paste0(key_get("local_shiny_path"), "cases.rds")) %>%
+  filter(raceEth == "Non-Hispanic Black") %>%
+  group_by(clean_city) %>%
+  tally()
+
+distortion_comparison <- muni_comparison %>%
+  select(Municipality, black_sf) %>%
+  filter(black_sf > 100) %>%
+  mutate(distorted_05 = round(black_sf * 1.05),
+         distorted_10 = round(black_sf * 1.1),
+         distorted_15 = round(black_sf * 1.15),
+         distorted_20 = round(black_sf * 1.2),
+         distorted_30 = round(black_sf * 1.3)) %>%
+  full_join(covid_counts, by = c("Municipality" = "clean_city")) %>%
+  drop_na() %>%
+  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
+  select(-rate_n) 
+
+quants <- classInt::classIntervals(distortion_comparison$rate_black_sf, 5, style = "quantile")$brks
+
+distortion_comparison_2 <- distortion_comparison %>%
+  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
+         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_black_sf), .names = "change_{.col}")) %>%
+  select(-change_quant_rate_black_sf)
+
+distortion_comparison_2 %>%
+  filter(black_sf > 100 & black_sf < 500) %>%
+  select(black_sf, contains("quant")) %>%
+  arrange(black_sf) %>% View()
+
+#Same numbers above for NHB
+#For a high incidence disease, a 5% change in population for small sub-groups would put 9% (3 / 32) of these groups in a different quintile; a 10% change in pop would put 22% (7 / 32) in a different quintile; a 15% change in pop would put 38% (12) in a different quintile; a 20% change would put 44% (14) in a different quintile. Quintiles are always off by 1 until you reach 20% pop change.
+
+
+## LOW/MED INCIDENCE ##
+
+#NHA#
+gc_counts <- read_csv(paste0(key_get("downloads_path"), "sti-demographics-line-list.csv")) %>%
+  janitor::clean_names() %>%
+  filter(disease == "Gonorrhea" & event_year == 2019 & ethnicity != "Hispanic or Latino" & grepl("Asian", race_list)) %>%
+  mutate(city_at_onset = recode(city_at_onset, `Summit Argo` = "Summit")) %>%
+  group_by(city_at_onset) %>%
+  tally()
+
+distortion_comparison <- muni_comparison %>%
+  select(Municipality, asian_sf) %>%
+  filter(asian_sf > 100) %>%
+  mutate(distorted_05 = round(asian_sf * 1.05),
+         distorted_10 = round(asian_sf * 1.1),
+         distorted_15 = round(asian_sf * 1.15),
+         distorted_20 = round(asian_sf * 1.2),
+         distorted_30 = round(asian_sf * 1.3)) %>%
+  full_join(gc_counts, by = c("Municipality" = "city_at_onset")) %>%
+  drop_na() %>%
+  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
+  select(-rate_n) 
+
+quants <- classInt::classIntervals(distortion_comparison$rate_asian_sf, 5, style = "quantile")$brks
+
+distortion_comparison_2 <- distortion_comparison %>%
+  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
+         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_asian_sf), .names = "change_{.col}")) %>%
+  select(-change_quant_rate_asian_sf)
+
+distortion_comparison_2 %>%
+  filter(asian_sf > 100 & asian_sf < 500) %>%
+  select(asian_sf, contains("quant")) %>%
+  arrange(asian_sf) %>% View()
+
+#For a low incidence disease, a 5%, 10%, 15%, and 20% change in population for small sub-groups all had same effect - 20% (1 in 5) would put in a different quintile. > 20% resulted in 40% (2 in 5) off by 1 quintile.
+
+#NHB#
+gc_counts <- read_csv(paste0(key_get("downloads_path"), "sti-demographics-line-list.csv")) %>%
+  janitor::clean_names() %>%
+  filter(disease == "Gonorrhea" & event_year == 2019 & ethnicity != "Hispanic or Latino" & grepl("Black", race_list)) %>%
+  mutate(city_at_onset = recode(city_at_onset, `Summit Argo` = "Summit")) %>%
+  group_by(city_at_onset) %>%
+  tally()
+
+distortion_comparison <- muni_comparison %>%
+  select(Municipality, black_sf) %>%
+  filter(black_sf > 100) %>%
+  mutate(distorted_05 = round(black_sf * 1.05),
+         distorted_10 = round(black_sf * 1.1),
+         distorted_15 = round(black_sf * 1.15),
+         distorted_20 = round(black_sf * 1.2),
+         distorted_30 = round(black_sf * 1.3)) %>%
+  full_join(gc_counts, by = c("Municipality" = "city_at_onset")) %>%
+  drop_na() %>%
+  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
+  select(-rate_n) 
+
+quants <- classInt::classIntervals(distortion_comparison$rate_black_sf, 5, style = "quantile")$brks
+
+distortion_comparison_2 <- distortion_comparison %>%
+  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
+         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_black_sf), .names = "change_{.col}")) %>%
+  select(-change_quant_rate_black_sf)
+
+distortion_comparison_2 %>%
+  filter(black_sf > 100 & black_sf < 500) %>%
+  select(black_sf, contains("quant")) %>%
+  arrange(black_sf) %>% View()
+
+#For a medium incidence disease, a 5% change in population for small sub-groups would put 5% (1 / 19) of these groups in a different quintile; a 10% change in pop would put 16% (3 / 19) in a different quintile; a 15% change in pop would put 32% (6) in a different quintile; a 20% change would put 42% (8) in a different quintile. Quintiles are always off by 1 until you reach >20% pop change.
+
+
+```
+

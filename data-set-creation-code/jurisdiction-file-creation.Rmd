@@ -1,0 +1,218 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+#set master API URL
+census_api <- "https://api.census.gov/data/2020/dec/pl"
+
+#store variables for master URL
+census_var_names <- fromJSON(paste0(census_api, "/variables")) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+#OOJ place codes
+ooj_place <- c("14000", "24582", "54885", "70122")
+
+#census tracts
+cook_tracts <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/2020/decennial-2020-race-ethnicity-by-tract.csv?raw=TRUE") 
+ccdph_tracts <- cook_tracts %>% filter(location == "ccdph") %>% pull(tract)
+scc_tracts <- cook_tracts %>% filter(location != "chicago") %>% pull(tract)
+
+
+
+```
+
+
+```{r helper_fx}
+
+#copied from muni-file-creation
+get_muni_pops <- function(place_code, variable, group, pop_in_cook = T){
+  
+  #construct api from arguments
+  variable_param <- ifelse(group, paste0("group(", variable,")"), variable)
+  if (pop_in_cook) {
+    api <- paste0(census_api,"?get=NAME,GEO_ID,", variable_param, "&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+  } else {
+    api <- paste0(census_api,"?get=NAME,GEO_ID,", variable_param, "&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
+  }
+  
+  #pull census data
+  results <- try(fromJSON(api))
+  
+  #stop function if URL doesn't return anything
+  if (class(results) == "try-error") {
+    #stop(paste("The API call failed at place code", place_code))
+    return(paste("The API call failed for place code", place_code))
+  }
+  
+  #clean data
+  town_pull <- results %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -c(NAME, GEO_ID), names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$", variable)) %>%
+    filter(!grepl(".*A$", variable)) %>%
+    left_join(census_var_names, by = c("variable" = "name")) %>%   #link back to variable names for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code)) %>%
+    mutate(estimate = as.numeric(as.character(estimate))) 
+  
+  return(town_pull)
+  
+}
+
+#pull single estimate function
+pull_estimate <- function(census_result, variable) {
+    census_result %>% as.data.frame() %>% row_to_names(row_number = 1) %>% pull(variable) %>% as.numeric()
+}
+
+#get ccdph or scc estimate for a single variable
+#geography should be "ccdph" or "scc"
+get_jurisdiction_estimate_subtraction <- function(variable, geography = "ccdph") {
+  
+  #get cook 
+  cook <- fromJSON(paste0(census_api,"?get=NAME,GEO_ID,", variable, "&for=county:031&in=state:17&key=", key_get("census-api-key"))) %>% pull_estimate(., variable = variable)
+  
+  #get ooj cities
+  ooj_cities <- map(ooj_place, ~get_muni_pops(.x, variable = variable, group = F)) %>% bind_rows() %>% select(NAME, estimate)
+
+  #get stickney
+  stickney <- fromJSON(paste0(census_api,"?get=NAME,GEO_ID,", variable, "&for=county%20subdivision:72689&in=state:17&in=county:031&key=", key_get("census-api-key"))) %>% pull_estimate(., variable = variable)
+  
+  if (geography == "ccdph") {
+    return(cook - (sum(ooj_cities$estimate) + stickney))
+  } else if (geography == "scc") {
+    return(cook - as.numeric(ooj_cities[grepl("Chicago", ooj_cities$NAME), "estimate"]))
+  }
+}
+
+
+get_jurisdiction_estimate_addition<- function(variable, geography = "ccdph") {
+  
+  #get all cook tracts
+  cook <- fromJSON(paste0(census_api,"?get=NAME,GEO_ID,", variable, "&for=tract:*&in=county:031&in=state:17&key=", key_get("census-api-key"))) %>%
+    as.data.frame() %>%
+    row_to_names(row_number = 1)
+    
+  if (geography == "ccdph") {
+    
+    estimate <- cook %>% filter(tract %in% ccdph_tracts) %>% pull(variable) %>% as.numeric() %>% sum()
+    return(estimate)
+  
+  } else if (geography == "scc") {
+  
+    estimate <- cook %>% filter(tract %in% scc_tracts) %>% pull(variable) %>% as.numeric() %>% sum()
+    return(estimate)
+    
+  }
+}
+
+```
+
+## Jurisdiction Totals - Addition Method
+
+Total and race/ethnicity populations are being pulled from the public law files. This code may have limited applicability to the DHC files (formerly Summary File 1) when released
+
+```{r addition_totals}
+
+addition_total <- data.frame(demographic = "Total", 
+                             ccdph_pop = get_jurisdiction_estimate_addition("P1_001N"), 
+                             scc_pop = get_jurisdiction_estimate_addition("P1_001N", "scc"))
+
+race_pops_addition_ccdph<- c(get_jurisdiction_estimate_addition("P2_002N"),  #Hispanic
+                           get_jurisdiction_estimate_addition("P2_005N"), #NHW
+                           get_jurisdiction_estimate_addition("P2_006N"), #NHB
+                           get_jurisdiction_estimate_addition("P2_008N"), #NHA
+                           get_jurisdiction_estimate_addition("P2_011N")) #NHMR
+
+race_pops_addition_scc <- c(get_jurisdiction_estimate_addition("P2_002N", "scc"),  #Hispanic
+                           get_jurisdiction_estimate_addition("P2_005N", "scc"), #NHW
+                           get_jurisdiction_estimate_addition("P2_006N", "scc"), #NHB
+                           get_jurisdiction_estimate_addition("P2_008N", "scc"), #NHA
+                           get_jurisdiction_estimate_addition("P2_011N", "scc")) #NHMR
+
+addition_race <- data.frame(demographic = c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Asian", "Non-Hispanic Multiracial", "Non-Hispanic Other"), 
+                            ccdph_pop = c(race_pops_addition_ccdph, addition_total$ccdph_pop - sum(race_pops_addition_ccdph)),
+                            scc_pop = c(race_pops_addition_scc, addition_total$scc_pop - sum(race_pops_addition_scc)))  #note: checked math on subtraction and it works
+
+
+
+```
+
+## Jurisdiction Totals - Subtraction Method
+
+Total and race/ethnicity populations are being pulled from the public law files. This code may have limited applicability to the DHC files (formerly Summary File 1) when released
+
+```{r subtraction_totals}
+
+subtraction_total <- data.frame(demographic = "Total", 
+                             ccdph_pop = get_jurisdiction_estimate_subtraction("P1_001N"), 
+                             scc_pop = get_jurisdiction_estimate_subtraction("P1_001N", "scc"))
+
+race_pops_subtraction_ccdph<- c(get_jurisdiction_estimate_subtraction("P2_002N"),  #Hispanic
+                           get_jurisdiction_estimate_subtraction("P2_005N"), #NHW
+                           get_jurisdiction_estimate_subtraction("P2_006N"), #NHB
+                           get_jurisdiction_estimate_subtraction("P2_008N"), #NHA
+                           get_jurisdiction_estimate_subtraction("P2_011N")) #NHMR
+
+race_pops_subtraction_scc <- c(get_jurisdiction_estimate_subtraction("P2_002N", "scc"),  #Hispanic
+                           get_jurisdiction_estimate_subtraction("P2_005N", "scc"), #NHW
+                           get_jurisdiction_estimate_subtraction("P2_006N", "scc"), #NHB
+                           get_jurisdiction_estimate_subtraction("P2_008N", "scc"), #NHA
+                           get_jurisdiction_estimate_subtraction("P2_011N", "scc")) #NHMR
+
+subtraction_race <- data.frame(demographic = c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Asian", "Non-Hispanic Multiracial", "Non-Hispanic Other"), 
+                            ccdph_pop = c(race_pops_subtraction_ccdph, subtraction_total$ccdph_pop - sum(race_pops_subtraction_ccdph)),
+                            scc_pop = c(race_pops_subtraction_scc, subtraction_total$scc_pop - sum(race_pops_subtraction_scc)))  #note: checked math on subtraction and it works
+
+```
+
+
+## District Totals
+
+Preferred method for district totals is aggregating census tracts to ensure residents of unincorporated areas are included in the districts.
+
+```{r districts}
+
+ccdph_district_pops <- cook_tracts %>%
+  filter(location == "ccdph") %>%
+  group_by(district) %>%
+  summarize(ccdph_pop = sum(total_pop)) %>%
+  ungroup() %>%
+  mutate(demographic = str_to_title(district),
+         scc_pop = as.numeric(NA)) %>%
+  select(demographic, ccdph_pop, scc_pop)
+
+
+```
+
+
+# Save Files
+
+```{r save}
+
+addition_file <- rbind(addition_total, addition_race, ccdph_district_pops)
+
+subtraction_file <- rbind(subtraction_total, subtraction_race, ccdph_district_pops)
+
+write_csv(addition_file, paste0(getwd(), "/2020/decennial-2020-jurisdiction-totals-addition.csv"))
+
+write_csv(subtraction_file, paste0(getwd(), "/2020/decennial-2020-jurisdiction-totals-subtraction.csv"))
+
+```
+

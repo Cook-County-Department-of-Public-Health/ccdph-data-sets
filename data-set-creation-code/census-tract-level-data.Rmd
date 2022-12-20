@@ -1,0 +1,131 @@
+---
+title: ''
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidycensus)
+library(tidyverse)
+library(magrittr)
+library(janitor)
+```
+
+```{r census_pops}
+
+#Census tracts in SCC and CCDPH jurisdiction
+scc_tracts = read_csv("raw-data/SCC_census_tracts.csv")
+ccdph_tracts = read_csv("raw-data/SCC_census_tracts_CCDPH_jurisdiciton.csv")
+#chi_tracts = read_csv("raw-data/chicago_census_tracts.csv") #https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Census-Tracts-2010/5jrd-6zik
+
+#variables to use in tidycensus
+variables_sf1 = load_variables(2010, "sf1", cache = TRUE)
+
+
+#SF1 variable for total population
+total_population = "P001001"
+
+#Get total populations for each census tract in Cook County, IL
+cook_census_tracts = get_decennial(geography = "tract", 
+                       state = "IL", county = "Cook",
+                       year = 2010, variables = total_population) %>%
+  clean_names() %>%
+  rename(population = value,
+         long_name = name,
+         fips = geoid) %>%
+  mutate(census_tract = substring(fips, 6, 11)) %>%
+  select(census_tract, fips, long_name, population) %>%
+  mutate(jurisdiction = case_when(fips %in% ccdph_tracts$FIPS ~ "CCDPH",
+                                  fips %in% scc_tracts$FIPS ~ "SCC",
+                                  TRUE ~ "CHI"
+                                  ),
+         #chicago = fips %in% chi_tracts$GEOID10
+         )
+
+#check jurisdiction populations
+jur_pops = cook_census_tracts %>%
+  group_by(jurisdiction) %>%
+  summarise(n = n(),
+            pop = sum(population)
+            )
+
+View(cook_census_tracts %>% filter((chicago == TRUE & jurisdiction != "CHI") | (jurisdiction == "CHI" & chicago == FALSE)))
+
+place_pops = get_decennial(geography = "place", 
+                       state = "IL", 
+                       year = 2010, variables = total_population)
+
+cook_county_pop = get_decennial(geography = "county", 
+                       state = "IL", county = "Cook",
+                       year = 2010, variables = total_population)
+
+#cook_census_tracts %>% filter(chicago) %>% pull(population) %>% sum()
+cook_census_tracts %>% filter(jurisdiction == "CHI") %>% pull(population) %>% sum()
+place_pops %>% filter(NAME == "Chicago city, Illinois") %>% pull(value)
+#plot census tracts to see if organized correctly!!! -- check 9900.00
+
+write_csv(cook_census_tracts, "../cook-county-census-tracts.csv")
+```
+
+
+```{r detailed_data}
+
+raceage = read_csv("raw-data/race ethnicity age census tract data 2010 SF2/DEC_10_SF2_PCT3_with_ann.csv", skip = 1) %>%
+  clean_names()
+
+raceage_tidy_census_tract = raceage %>%
+  rename(race_id = id, fips = id2, race_eth_group = population_group) %>%
+  select(-id_1) %>%
+  filter(fips %in% cook_census_tracts$fips) %>%
+  mutate(across(total:female_110_years_and_over, ~as.numeric(gsub("\\(.*$", "", .x))),
+         fips = as.character(fips)) %>%
+  pivot_longer(-c(race_id:geography),
+               names_to = "group",
+               values_to = "population"
+               ) %>%
+  mutate(sex = case_when(grepl("female", group) ~ "F",
+                         grepl("male", group) ~ "M"
+                         ),
+         age = gsub("\\D", "", group),
+         age = ifelse(grepl("under_1_year", group), 0, 
+                      ifelse(grepl("100_to_104_years", group), 102,
+                             ifelse(grepl("male_105_to_109_years", group), 107, age))),
+         age = as.integer(age)
+         ) %>%
+  relocate(population, .after = last_col()) %>%
+  left_join(cook_census_tracts %>% select(census_tract, fips, jurisdiction), by = "fips") %>%
+  relocate(c(census_tract, jurisdiction), .after = geography) %>%
+  filter(jurisdiction %in% c("CCDPH", "SCC"))
+
+#example- number of 6-8 year olds in ccdph jurisdiction
+raceage_tidy_census_tract %>%
+  filter(race_eth_group == "Total population",
+         jurisdiction == "CCDPH",
+         age >= 6,
+         age <= 8
+         ) %>%
+  pull(population) %>%
+  sum()
+
+#example- number of Non-Hispanic Black 6-8 year olds in ccdph jurisdiction 
+#NOTE- this is not complete, since census tracts with <100 NHBs do not have data for NHBs
+raceage_tidy_census_tract %>%
+  filter(race_eth_group == "Black or African American alone, not Hispanic or Latino",
+         jurisdiction == "CCDPH",
+         age >= 6,
+         age <= 8
+         ) %>%
+  pull(population) %>%
+  sum()
+
+
+#number of census tracts with data by each race/eth group:
+table(raceage_tidy_census_tract$race_eth_group) %>% sort() %>% divide_by(209)
+
+
+write_csv(raceage_tidy_census_tract, "cook-county-census-tracts-detailed-race-ethnicity-age-populations.csv")
+```
+
+
+

@@ -1,0 +1,147 @@
+---
+title: ''
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidycensus)
+library(tidyverse)
+library(magrittr)
+library(janitor)
+library(devtools)
+library(readxl)
+library(stringi)
+library(stringdist)
+library(fuzzyjoin)
+
+source_url("https://github.com/hsteinberg/ccdph-functions/blob/master/miscellaneous-helper-functions.R?raw=TRUE")
+
+districts = read_csv("../Districts.csv")
+```
+
+```{r}
+#https://nomorehacks.wordpress.com/2017/11/21/fuzzy-matching-in-r-for-addresses/ fuzzy address matching tutorial
+
+#Load SNF addresses and clean
+snfs = read_csv("raw-data/healthcare-facilities/SNF_contactsFeb2020.csv", col_types =cols()) %>%
+  rename(facility = `Facility Name`, street = `Facility address`, city = `Facility City`,
+         skilled_beds = `Total Licensed Beds`) %>%
+  mutate(city = stri_trans_totitle(city),
+         city = clean_cook_town_names(city),
+         address = paste(street, city),
+         address = clean_addresses(address),
+         type = ifelse(is.na(type), "SNF", type)
+         )
+
+#Nursing homes
+nhs = read_csv("raw-data/healthcare-facilities/idph_nursing_homes.csv", col_types=cols()) %>%
+  filter(city != "CHICAGO") %>%
+  rename(facility = name) %>%
+  mutate(city = stri_trans_totitle(city),
+         city = clean_cook_town_names(city),
+         address = paste(address, city),
+         address = clean_addresses(address),
+         beds = rowSums(across(contains("beds"))),
+         type = "NH"
+         ) 
+
+#Hospitals
+hospitals = read_csv("raw-data/healthcare-facilities/Illinois Master Facility Table_06182019.csv") %>%
+  rename(facility = Facility_Name, 
+         street = Facility_Street_Address,
+         city = Facility_City,
+         zip = Facility_Zip) %>%
+  filter(Facility_County == "Cook",
+         city != "Chicago"
+         ) %>%
+  mutate(city = clean_cook_town_names(city),
+         address = clean_addresses(toupper(paste(street, city))),
+         type = "ACH",
+         zip = gsub("\\-.*$", "", zip),
+         zip = as.numeric(zip),
+         )
+
+#Assisted living facilities
+assisted_living = read_xlsx("raw-data/healthcare-facilities/AssistedLIvingLicensedILCConly.xlsx") %>%
+  clean_names() %>%
+    rename(facility = est_name, 
+         street = address,
+         beds = total) %>%
+    mutate(
+          city = clean_cook_town_names(city),
+          address = clean_addresses(toupper(paste(street, city))),
+          type = "AL",
+          zip = as.numeric(zip)
+         )
+
+#combine all hospitals/nhs
+healthcare_facilities = bind_rows(snfs, nhs,assisted_living, hospitals) %>% 
+  select(facility, street, city, zip, address, type, skilled_beds, beds) %>%
+  rowwise() %>%
+  mutate(street = ifelse(is.na(street), gsub(toupper(city), "", address), street)
+         ) %>%
+  left_join(districts %>% select(Name, District), by = c("city" = "Name")) %>%
+  rename(district = District) %>%
+  mutate(district = case_when(city == "Deerfield" ~ "North",
+                              city == "Hines" ~ "West",
+                              TRUE ~ district
+                              ),
+         matching_address = address %>%
+           gsub(" NORTH | SOUTH | WEST | EAST ", " ", .) %>%
+           gsub(" ROAD | STREET | AVENUE | BOULEVARD | DRIVE | LANE ", " ", .)%>%
+           gsub("  ", " ", .)
+         ) %>%
+  group_by(matching_address) %>%
+  mutate(unique_id = cur_group_id()) %>%
+  ungroup() %>%
+  select(-matching_address)
+
+# addresses = healthcare_facilities$address
+# match_matrix = stringdistmatrix(addresses, addresses, method = "jw") 
+# match_matrix[match_matrix > 0.2] = NA
+# matches = apply(match_matrix, 1, function(x){
+#   which(!is.na(x))
+# })
+# matches_addresses = sapply(matches, function(x){healthcare_facilities$address[x]})
+
+write_csv(healthcare_facilities, "../Healthcare Facility Addresses.csv", na = "")
+
+```
+
+```{r total-beds}
+
+total_beds = healthcare_facilities %>%
+  filter(district != "OOJ") %>%
+  arrange(desc(beds)) %>%
+  group_by(unique_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  mutate(beds = ifelse(is.na(beds), skilled_beds, beds)) %>%
+  pull(beds) %>%
+  sum(na.rm = T)
+
+
+muni_pops = read_csv("../Municipality Populations.csv")
+beds_by_city = healthcare_facilities %>% 
+  filter(district != "OOJ", type != "ACH") %>%
+  arrange(desc(beds)) %>%
+  group_by(unique_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  mutate(beds = ifelse(is.na(beds), skilled_beds, beds)) %>%
+  group_by(city) %>% 
+  summarise(n = n(),
+            beds = sum(beds, na.rm = T)
+            ) %>%
+  left_join(muni_pops, by = c("city" = "Municipality")) %>%
+  mutate(facilities_per_10000_pop = round(n/Population2010*10000,2),
+         beds_percent_of_pop = round(beds/Population2010*100, 2)
+         ) %>%
+  arrange(desc(beds_percent_of_pop))
+
+
+```
+
+

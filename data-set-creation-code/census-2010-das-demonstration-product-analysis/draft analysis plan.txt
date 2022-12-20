@@ -1,0 +1,20 @@
+Calculate metrics for the following geographies
+
+1) census tract total 
+2) census tract Hispanic 
+3) census tract non-Hispanic Black 
+4) census tract non-Hispanic Asian
+5) census block group total 
+6) muni total 
+7) muni Hispanic 
+8) muni non-Hispanic Black
+9) muni non-Hispanic Asian
+10) muni standard census age groups* (no demonstration data currently available)
+11) muni single year age groups*  (no demonstration data currently available)
+
+Calculate following metrics
+
+1) Absolute change in number for each geography
+2) Mean absolute change for all - how big and is there any directionality
+3) Absolute percent change for each geography; flag outliers above 5% - produce scatter plots and consider mapping outliers to see if they are spatially clustered
+4) Mean percent change for all - how big and is there any directionality

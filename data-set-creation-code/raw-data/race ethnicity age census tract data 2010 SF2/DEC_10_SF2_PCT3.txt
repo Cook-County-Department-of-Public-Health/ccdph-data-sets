@@ -1,0 +1,161 @@
+PCT3
+SEX BY AGE
+
+Universe: Total population
+
+NOTE: For information on confidentiality protection, nonsampling error, and definitions, see  http://www.census.gov/prod/cen2010/doc/sf2.pdf.Summary File 2 has a population threshold of 100.  Data are available only for the population groups having a population of 100 or more of that specific group within a particular geographic area. 
+
+(r38234)	This count has been revised.   
+Revised count: 308,746,065 Revision date: 01-31-2014
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41560)	This count has been revised.   
+Revised count: 3,228 Revision date: 11-20-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41561)	This count has been revised.   
+Revised count: 2,213 Revision date: 11-20-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41895)	This count has been revised.   
+Revised count: 197,848 Revision date: 10-24-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41896)	This count has been revised.   
+Revised count: 2,386 Revision date: 01-02-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41897)	This count has been revised.   
+Revised count: 7,228 Revision date: 04-30-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41898)	This count has been revised.   
+Revised count: 5,145 Revision date: 09-23-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41899)	This count has been revised.   
+Revised count: 829 Revision date: 05-23-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41900)	This count has been revised.   
+Revised count: 44,030 Revision date: 03-16-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41901)	This count has been revised.   
+Revised count: 17,074 Revision date: 10-26-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41902)	This count has been revised.   
+Revised count: 20,906 Revision date: 09-23-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41903)	This count has been revised.   
+Revised count: 3,688 Revision date: 09-23-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41904)	This count has been revised.   
+Revised count: 43,395 Revision date: 11-14-2011
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41905)	This count has been revised.   
+Revised count: 607 Revision date: 05-23-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41906)	This count has been revised.   
+Revised count: 28,396 Revision date: 10-26-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41907)	This count has been revised.   
+Revised count: 7,474 Revision date: 09-23-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41908)	This count has been revised.   
+Revised count: 32,919 Revision date: 01-04-2013
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41909)	This count has been revised.   
+Revised count: 1,043 Revision date: 02-16-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+(r41910)	This count has been revised.   
+Revised count: 13,191 Revision date: 10-24-2012
+
+For more information, see  2010 Census Count Question Resolution.
+
+  
+
+
+Source: U.S. Census Bureau, 2010 Census.
+

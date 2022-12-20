@@ -1,0 +1,179 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+#set master API URL
+census_api <- "https://api.census.gov/data/2020/dec/pl"
+
+#store variables for master URL
+census_var_names <- fromJSON(paste0(census_api, "/variables")) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+```
+
+## Import current list of Cook munis
+
+GIS Department muni file is the master source of all munis in Cook and is checked annually for changes
+
+```{r current_munis}
+
+current_munis <- read_csv("Municipality Populations.csv") %>%
+  mutate(CensusPlaceCode = ifelse(nchar(CensusPlaceCode) == 4, paste0("0", CensusPlaceCode), CensusPlaceCode))
+
+place_codes <- current_munis %>% pull(CensusPlaceCode)  
+
+```
+
+## Function to pull muni data
+
+Note: Once all decennial files published, update function to compatible for all pulls and move to census functions in functions repo
+
+```{r}
+#function arguments:
+#place_code - quoted character, the census place code for munis
+#variable - quoted character, the variable or table you want to pull
+#group - logical, set to T if pulling a table, F if pulling single variable
+#pop_in_cook - logical, pull only pop within Cook by default, change to F if you want total pops for partial towns
+get_muni_pops_decennial <- function(place_code, variable, group, pop_in_cook = T){
+  
+  #construct api from arguments
+  variable_param <- ifelse(group, paste0("group(", variable,")"), variable)
+  if (pop_in_cook) {
+    api <- paste0(census_api,"?get=NAME,GEO_ID,", variable_param, "&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+  } else {
+    api <- paste0(census_api,"?get=NAME,GEO_ID,", variable_param, "&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
+  }
+  
+  #pull census data
+  results <- try(fromJSON(api))
+  
+  #stop function if URL doesn't return anything
+  if (class(results) == "try-error") {
+    #stop(paste("The API call failed at place code", place_code))
+    return(paste("The API call failed for place code", place_code))
+  }
+  
+  #clean data
+  town_pull <- results %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -c(NAME, GEO_ID), names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$", variable)) %>%
+    filter(!grepl(".*A$", variable)) %>%
+    left_join(census_var_names, by = c("variable" = "name")) %>%   #link back to variable names for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code)) %>%
+    mutate(estimate = as.numeric(as.character(estimate))) 
+  
+  return(town_pull)
+  
+}
+
+```
+
+
+## Total population and population in Cook by muni
+
+```{r get_pops}
+
+#Pull total population for all Cook munis
+muni_pops_total <- map(place_codes, ~get_muni_pops(place_code = .x, variable = "P1_001N", group = F, pop_in_cook = F)) %>% 
+  discard(inherits, "character") %>%  
+  bind_rows()
+
+#Pull population in Cook for all Cook munis
+#Note: #if interested in seeing failures, change discard() to keep() and drop bind_rows
+#calls failed for Highland Park, Oak Brook, and Riverwoods
+muni_pops_cook <- map(place_codes, ~get_muni_pops(place_code = .x, variable = "P1_001N", group = F)) %>%
+  discard(inherits, "character") %>%  
+  bind_rows()
+
+#combine files and create variables
+muni_final <- current_munis %>%
+  select(Municipality, District, CensusPlaceCode) %>%
+  left_join(select(muni_pops_total, total_pop = estimate, CensusPlaceCode)) %>%
+  left_join(select(muni_pops_cook, pop_in_cook = estimate, CensusPlaceCode)) %>%
+  mutate(pop_in_cook = replace_na(pop_in_cook, 0),
+         partial = total_pop > pop_in_cook,
+         exclude_from_analysis = ifelse(pop_in_cook < 500 & partial == T, T, F)) %>%
+  janitor::clean_names() %>%
+  relocate(contains("pop"), .after = municipality) %>%
+  relocate(census_place_code, .after = last_col())
+  
+
+#comparison with previous decennial
+# muni_compare <- current_munis %>%
+#   left_join(muni_final, by = c("CensusPlaceCode" = "census_place_code")) %>%
+#   mutate(new_partial = Partial != partial,
+#          new_exclude = ExcludeFromAnalysis != exclude_from_analysis,
+#          pop_diff = pop_in_cook - Population2010,
+#          pop_percent = pop_diff / Population2010 * 100)
+
+write_csv(muni_final, paste0(getwd(), "/2020/decennial-2020-total-muni.csv"))
+
+
+```
+
+
+## Race and ethnicity by muni
+
+Note: Race and ethnicity categories differ between Public Law Table 2 and DHC (formerly SF1) Table P5. Cleaning steps below apply only to P2.
+
+```{r race_pops}
+
+muni_race <- map(place_codes, ~get_muni_pops(place_code = .x, variable = "P2", group = T)) %>%
+  discard(inherits, "character") %>%  
+  bind_rows()
+
+muni_race_clean <- muni_race %>%
+  mutate(filter_variable = as.numeric(sub("(^P2_)(.*)(N)", "\\2", variable))) %>%  
+  filter(filter_variable <= 11) %>%    #every variable after P2_011N are subgroups of other variables so don't need
+  mutate(label = trimws(gsub("!!|Total:", "", label))) %>%
+  separate(label, into = c("ethnicity", "multiracial", "race"), sep = ":") %>%
+  mutate(across(c("ethnicity", "multiracial", "race"), ~ifelse(.x == "", NA, .x))) %>%
+  mutate(race_ethnicity = case_when(ethnicity == "Hispanic or Latino" ~ "Hispanic/Latino",
+                                    race == "White alone" ~ "Non-Hispanic White",
+                                    race == "Black or African American alone" ~ "Non-Hispanic Black",
+                                    race == "Asian alone" ~ "Non-Hispanic Asian",
+                                    grepl("two", multiracial) ~ "Non-Hispanic Multiracial",
+                                    !is.na(race) ~ "Non-Hispanic Other")) %>%
+  drop_na(race_ethnicity) %>%
+  mutate(clean_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_name = gsub("^.*, ", "", clean_name)) %>%
+  select(census_name = NAME,
+         clean_name,
+         census_place_code = CensusPlaceCode, 
+         race_ethnicity,
+         estimate) %>%
+  group_by(census_name, clean_name, census_place_code, race_ethnicity) %>%
+  summarize(population = sum(estimate)) %>%
+  ungroup()
+  
+#Mutually exclusive race groups add up to total pop in cook for all munis
+check_pops <- muni_race_clean %>%
+  group_by(census_place_code) %>%
+  summarize(total_calc_pop = sum(population)) %>%
+  ungroup() %>%
+  left_join(muni_final) %>%
+  mutate(check = total_calc_pop == pop_in_cook)
+
+write_csv(muni_race_clean, paste0(getwd(), "/2020/decennial-2020-race-ethnicity-by-muni-cleaned.csv"))
+
+```
+

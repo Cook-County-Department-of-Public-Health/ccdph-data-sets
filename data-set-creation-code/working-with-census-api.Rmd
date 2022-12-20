@@ -1,0 +1,561 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+```
+
+## Pull table B01001 (sex by age) from 5 year ACS for all CCDPH municipalities
+
+```{r acs_age_sex_muni}
+
+#load in ccdph muni file with place code
+munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
+  #filter(ExcludeFromAnalysis == F) %>%   
+  mutate(CensusPlaceCode = ifelse(nchar(CensusPlaceCode) == 4, paste0("0", CensusPlaceCode), CensusPlaceCode))
+
+#load in ACS variable names to match with codes
+acs_vars <- fromJSON("https://api.census.gov/data/2019/acs/acs5/variables") %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+#Create empty list to store place data
+acs_age_pops_muni_list <- list()
+
+#loop through munis list to pull data
+for (i in 1:nrow(munis)) {
+  
+  #determine if partial place string needed
+  partial <- munis[[i, "Partial"]]
+  
+  #extract place code  -- NOTE: ifelse should not necessary if performed when importing the muni file, remove after next test
+  #place_code <- as.character(munis[[i, "CensusPlaceCode"]] %>% ifelse(nchar(.) == 4, paste0("0", .), .))
+  place_code <- munis[[i, "CensusPlaceCode"]]
+  
+  #construct api call - different string needed for if pulling for only part of town within cook county
+  if (partial) {
+    api <- paste0("https://api.census.gov/data/2019/acs/acs5?get=NAME,group(B01001)&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+  } else {
+    api <- paste0("https://api.census.gov/data/2019/acs/acs5?get=NAME,group(B01001)&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
+  }
+  
+  #pull data
+  town_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("*(E|M)$", variable)) %>%    #keep only population estimates and MOEs (see note below, no annonations present)
+    separate(variable, into = c("variable", "estimate_type"), sep = -1) %>%
+    pivot_wider(c(NAME, variable), names_from = estimate_type, values_from = estimate) %>%
+    rename(estimate = E, margin_of_error = M) %>%
+    mutate(variable = paste0(variable, "E")) %>%
+    left_join(acs_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code))
+  
+  #add results to list
+  acs_age_pops_muni_list[[i]] <- town_pull
+  
+}
+
+#combine separate town files into one
+acs_age_pops_muni <- bind_rows(acs_age_pops_muni_list)
+
+#first exploration - see if any estimates annotated -- No annotations present, don't need to include in final loop
+#acs_age_pops_muni %>% filter(grepl("M", variable) & !is.na(estimate)) %>% View()
+
+#QUALITY CHECK -- make sure sum of pops add up to the whole
+check_pops <- acs_age_pops_muni %>%
+  filter(!variable %in% c("B01001_001E", "B01001_002E", "B01001_026E"))  %>% #remove total pop, total male, total female 
+  group_by(NAME) %>%
+  summarize(total_pop_calc = sum(as.numeric(estimate))) %>%  #sum all mutually exclusive male and female age groups for calculated total pop
+  ungroup() %>%
+  left_join(filter(acs_age_pops_muni, variable == "B01001_001E")) %>%
+  mutate(diff = total_pop_calc - as.numeric(estimate))  #verify all diff values equal zero
+
+#QULAITY CHECK -- make sure place code matching expected name from muni file 
+name_compare <- acs_age_pops_muni %>%
+  filter(variable == "B01001_001E") %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(clean_census_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_census_name = gsub("^.*, ", "", clean_census_name),
+         fips_check = trimws(clean_census_name) == trimws(Municipality)) %>%
+  select(NAME, CensusPlaceCode, clean_census_name, Municipality, fips_check)
+
+#QULAITY CHECK -- compare ACS total pops to decennial total pops to check for any wild discrepancies
+total_pop_compare <- acs_age_pops_muni %>%
+  filter(variable == "B01001_001E") %>%
+  mutate(estimate = as.numeric(estimate)) %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(diff = estimate - Population2010,
+         percent_change = ((estimate - Population2010) / Population2010) * 100,
+         percent_change = round(percent_change, 2),
+         percent_change_abs = abs(percent_change)) %>%
+  select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff, percent_change, percent_change_abs) 
+
+
+#Store data set in github repository
+#Format determined from consensus discussion in inter-epi group
+acs_age_pop_muni_clean <- acs_age_pops_muni %>%
+  filter(!variable %in% c("B01001_001E", "B01001_002E", "B01001_026E"))  %>% #remove totals
+  mutate(label = gsub("Estimate!!Total:!!", "", label)) %>%
+  separate(label, into = c("sex", "age"), sep = ":!!") %>%
+  mutate(clean_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_name = gsub("^.*, ", "", clean_name)) %>%
+  select(census_name = NAME,
+         clean_name,
+         census_place_code = CensusPlaceCode, 
+         variable,
+         sex,
+         age,
+         estimate,
+         margin_of_error)
+
+write_csv(acs_age_pop_muni_clean, "acs-5yr-2019-age-sex-by-muni.csv")
+
+#Explore margins of error
+explore_moe <- acs_age_pop_muni_clean %>% 
+  mutate(estimate = as.numeric(as.character(estimate)), 
+         margin_of_error = as.numeric(as.character(margin_of_error)), 
+         moe_bigger = margin_of_error > estimate, 
+         moe_percent = (margin_of_error / estimate) * 100)
+
+explore_moe %>% filter(moe_bigger) %>% nrow() #16% of cells have MOEs larger than the estimate
+explore %>% filter(moe_percent > 50) %>% nrow() #45% of cells have MOEs larger than half the estimate
+
+
+```
+
+## Pull table P12 (sex by age) from decennial 2010 summary file 1 for all CCDPH municipalities
+
+*Note: API call for partial Homer Glen fails - not sure why. Call works for 2019 5 YR ACS (0 people within Cook County). Maybe decennial doesn't have any part of it in Cook County?  Filter out for now.*
+
+```{r sf1_age_sex_muni}
+
+#load in ccdph muni file with place code
+munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
+  #filter(ExcludeFromAnalysis == F) %>%   
+  mutate(CensusPlaceCode = ifelse(nchar(CensusPlaceCode) == 4, paste0("0", CensusPlaceCode), CensusPlaceCode)) %>%
+  filter(Municipality != "Homer Glen")  #see Note above
+
+#load in sf1 variable names to match with codes
+dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf1/variables") %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+#Create empty list to store place data
+dec_age_pops_muni_list <- list()
+
+#loop through munis list to pull data
+for (i in 1:nrow(munis)) {
+  
+  #determine if partial place string needed
+  partial <- munis[[i, "Partial"]]
+  
+  #extract place code  -- NOTE: ifelse should not necessary if performed when importing the muni file, remove after next test
+  #place_code <- as.character(munis[[i, "CensusPlaceCode"]] %>% ifelse(nchar(.) == 4, paste0("0", .), .))
+  place_code <- munis[[i, "CensusPlaceCode"]]
+  
+  #construct api call - different string needed for if pulling for only part of town within cook county
+  if (partial) {
+    api <- paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P12)&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+  } else {
+    api <- paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P12)&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
+  }
+  
+  #pull data
+  town_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$", variable)) %>%
+    left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code)) %>%
+    mutate(estimate = as.numeric(as.character(estimate)))  #numbers being stored as factors
+  
+  #add results to list
+  dec_age_pops_muni_list[[i]] <- town_pull
+  
+}
+
+#combine separate town files into one
+dec_age_pops_muni <- bind_rows(dec_age_pops_muni_list)
+
+#QUALITY CHECK -- make sure sum of pops add up to the whole
+check_pops <- dec_age_pops_muni %>%
+  filter(!variable %in% c("P012001", "P012002", "P012026"))  %>% #remove total pop, total male, total female 
+  group_by(NAME) %>%
+  summarize(total_pop_calc = sum(estimate)) %>%  #sum all mutually exclusive male and female age groups for calculated total pop
+  ungroup() %>%
+  left_join(filter(dec_age_pops_muni, variable == "P012001")) %>%
+  mutate(diff = total_pop_calc - as.numeric(estimate))  #verify all diff values equal zero
+
+#QULAITY CHECK -- make sure place code matching expected name from muni file 
+name_compare <- dec_age_pops_muni %>%
+  filter(variable == "P012001") %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(clean_census_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_census_name = gsub("^.*, ", "", clean_census_name),
+         fips_check = trimws(clean_census_name) == trimws(Municipality)) %>%
+  select(NAME, CensusPlaceCode, clean_census_name, Municipality, fips_check)
+
+
+#NOTE: when pulling 2020 data, may want to adapt this quality check to compare 2020 decennial to 2010 decennial for wild discrepancies
+total_pop_compare <- dec_age_pops_muni %>%
+  filter(variable == "P012001") %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(diff = estimate - Population2010) %>%
+  select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff) 
+
+
+#Store data set in github repository
+#Format determined from consensus discussion in inter-epi group
+dec_age_pops_muni_clean <- dec_age_pops_muni %>%
+  filter(!variable %in% c("P012001", "P012002", "P012026"))  %>% #remove total pop, total male, total female 
+  mutate(label = gsub("Total!!", "", label)) %>%
+  separate(label, into = c("sex", "age"), sep = "!!") %>%
+  select(census_name = NAME,
+         census_place_code = CensusPlaceCode, 
+         variable,
+         sex,
+         age,
+         estimate)
+
+write_csv(dec_age_pops_muni_clean, "decennial-2010-age-sex-by-muni.csv")
+
+```
+
+
+## Pull table P5 (Hispanic or Latino Origin by Race) from decennial 2010 summary file 1 for all CCDPH municipalities
+
+
+```{r sf1_race_muni}
+
+#load in ccdph muni file with place code
+munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
+  #filter(ExcludeFromAnalysis == F) %>%   
+  mutate(CensusPlaceCode = ifelse(nchar(CensusPlaceCode) == 4, paste0("0", CensusPlaceCode), CensusPlaceCode)) %>%
+  filter(Municipality != "Homer Glen")  #see Note above age
+
+#load in sf1 variable names to match with codes
+dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf1/variables") %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+#Create empty list to store place data
+dec_race_pops_muni_list <- list()
+
+#loop through munis list to pull data
+for (i in 1:nrow(munis)) {
+  
+  #determine if partial place string needed
+  partial <- munis[[i, "Partial"]]
+  
+  #extract place code  -- NOTE: ifelse should not necessary if performed when importing the muni file, remove after next test
+  #place_code <- as.character(munis[[i, "CensusPlaceCode"]] %>% ifelse(nchar(.) == 4, paste0("0", .), .))
+  place_code <- munis[[i, "CensusPlaceCode"]]
+  
+  #construct api call - different string needed for if pulling for only part of town within cook county
+  if (partial) {
+    api <- paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P5)&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+  } else {
+    api <- paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P5)&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
+  }
+  
+  #pull data
+  town_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$", variable)) %>%
+    left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code)) %>%
+    mutate(estimate = as.numeric(as.character(estimate)))  #numbers being stored as factors
+  
+  #add results to list
+  dec_race_pops_muni_list[[i]] <- town_pull
+  
+}
+
+#combine separate town files into one
+dec_race_pops_muni <- bind_rows(dec_race_pops_muni_list)
+
+#QUALITY CHECK -- make sure sum of pops add up to the whole
+check_pops <- dec_race_pops_muni %>%
+  filter(!variable %in% c("P005001", "P005002", "P005010"))  %>% #remove total pop, total non-hispanic, total hispanic 
+  group_by(NAME) %>%
+  summarize(total_pop_calc = sum(estimate)) %>%  #sum all mutually exclusive race/ethnicity groups for calculated total pop
+  ungroup() %>%
+  left_join(filter(dec_race_pops_muni, variable == "P005001")) %>%
+  mutate(diff = total_pop_calc - estimate)  #verify all diff values equal zero
+
+#QULAITY CHECK -- make sure place code matching expected name from muni file 
+name_compare <- dec_race_pops_muni %>%
+  filter(variable == "P005001") %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(clean_census_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_census_name = gsub("^.*, ", "", clean_census_name),
+         fips_check = trimws(clean_census_name) == trimws(Municipality)) %>%
+  select(NAME, CensusPlaceCode, clean_census_name, Municipality, fips_check)
+
+
+#QULAITY CHECK -- compare ACS total pops to decennial total pops to check for any wild discrepancies
+#NOTE: when pulling 2020 data, may want to adapt this quality check to compare 2020 decennial to 2010 decennial for wild discrepancies
+total_pop_compare <- dec_race_pops_muni %>%
+  filter(variable == "P005001") %>%
+  left_join(munis, by = "CensusPlaceCode") %>%
+  mutate(diff = estimate - Population2010) %>%
+  select(NAME, Municipality, CensusPlaceCode, Population2010, estimate, diff) 
+
+#Store data set for future use -- modify storage location
+#write_csv(dec_race_pops_muni, "decennial-2010-race-by-muni.csv")
+#Store data set in github repository
+#Format determined from consensus discussion in inter-epi group
+dec_race_pops_muni_clean <- dec_race_pops_muni %>%
+  filter(!variable %in% c("P005001", "P005002", "P005010"))  %>% #remove total pop, total non-hispanic, total hispanic  
+  mutate(label = gsub("Total!!", "", label)) %>%
+  separate(label, into = c("ethnicity", "race"), sep = "!!") %>%
+  mutate(clean_name = gsub(" village, Illinois| city, Illinois| town, Illinois", "", NAME),
+         clean_name = gsub("^.*, ", "", clean_name)) %>%
+  select(census_name = NAME,
+         clean_name,
+         census_place_code = CensusPlaceCode, 
+         variable,
+         ethnicity,
+         race,
+         estimate)
+
+write_csv(dec_race_pops_muni_clean, "decennial-2010-race-ethnicity-by-muni.csv")
+
+
+```
+
+## Pull total population from decennial 2010 summary file 1 for all ZCTAs that have population in Cook County
+
+```{r sf1_total_zcta}
+
+#import current zip code file
+current_zips <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Suburban%20Cook%20Zip%20Codes.csv?raw=TRUE") %>% 
+  clean_names() %>%
+  mutate(zip_code = as.character(zip_code))
+
+#list zctas in illinois (note:only one IL ZCTA crosses state lines, down state so not of concern for CCDPH)
+zcta_il <- fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=zip%20code%20tabulation%20area%20(or%20part):*&in=state:17&key=", key_get("census-api-key"))) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>%
+  select(zcta = `zip code tabulation area (or part)`,
+         population = P001001)
+
+#function to pull pop in cook
+get_partial <- function(zcta){
+  
+  value <- fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", zcta, "&key=", key_get("census-api-key")))[2,1]
+  
+  return(as.numeric(value))
+  
+}
+
+#Note: code below works but is very slow (~25 minutes); might want to for loop with try() at some point
+zcta_pops <- zcta_il %>%
+  rowwise() %>%
+  mutate(population_cook = possibly(get_partial, otherwise = NA)(zcta))
+
+zcta_pops_clean <- zcta_pops %>%
+  drop_na(population_cook) %>%
+  mutate(population = as.numeric(population),
+         percent_in_cook = (population_cook / population) * 100,
+         percent_in_cook = round(percent_in_cook, 1),
+         partial = population != population_cook) %>%
+  full_join(current_zips, by = c("zcta" = "zip_code")) %>%
+  mutate(primary_city = case_when(!is.na(primary_city) ~ primary_city,
+                                  grepl("^606.*", zcta) ~ "Chicago",
+                                  grepl("^603.*", zcta) ~ "Oak Park",
+                                  grepl("^602.*", zcta) ~ "Evanston",
+                                  grepl("^6007.*", zcta) ~ "Skokie",
+                                  zcta == "60459" ~ "Burbank")) %>%
+  mutate(district = ifelse(is.na(district) & primary_city %in% c("Chicago", "Oak Park", "Evanston", "Skokie", "Stickney", "Burbank", "Forest View"), "OOJ", district)) %>%
+  #rename(ccdph_district = district) %>%
+  mutate(nssp_region = as.character(NA)) %>%
+  mutate(notes = case_when(zcta == "60007" ~ "borders cross into O'Hare and DuPage but all residents in Cook per census",
+                           zcta == "60402" ~ "part in Berwyn and part in Stickney Township")) %>%  #add institutional knowledge previously stored in previous zip code file's "cross_borders" field
+  select(-c(population_zcta_2010, cross_borders)) %>%
+  select(zip_code = zcta,
+         zcta_total_pop = population,
+         zcta_pop_in_cook = population_cook,
+         percent_pop_cook = percent_in_cook,
+         partial,
+         district,
+         primary_city,
+         nssp_region,
+         notes)
+  
+#write file to csv and manually fill in missing district and primary city for partial zips using melissa data
+write_csv(zcta_pops_clean, "decennial-2010-total-pop-zcta.csv")
+
+```
+
+## Pull single year age pops <20 for CCDPH jurisdiction
+
+```{r sf1_ccdph_single_age}
+
+
+
+```
+
+
+## Pull 12+ population by muni
+
+```{r sf2_twelve_plus}
+
+#load in ccdph muni file with place code
+munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/Municipality%20Populations.csv?raw=TRUE") %>% 
+  #filter(ExcludeFromAnalysis == F) %>%   
+  mutate(CensusPlaceCode = ifelse(nchar(CensusPlaceCode) == 4, paste0("0", CensusPlaceCode), CensusPlaceCode)) %>%
+  filter(!ExcludeFromAnalysis)
+
+#load in sf2 variable names to match with codes
+dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf2/variables") %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+
+#loop through munis list to pull data
+over_12_by_muni = sapply(munis$CensusPlaceCode, function(x){
+  print(x) #for debugging and checking progress
+  
+  #determine if partial place string needed
+  partial = munis$Partial[munis$CensusPlaceCode == x]
+  
+  #extract place code 
+  place_code = x
+  
+  #construct api call - different string needed for if pulling for only part of town within cook county
+  if (partial) {
+    api <- paste0("https://api.census.gov/data/2010/dec/sf2?get=NAME,group(PCT3)&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
+    } else {
+    api <- paste0("https://api.census.gov/data/2010/dec/sf2?get=NAME,group(PCT3)&for=place:", ... = place_code, "&in=state:17&key=", key_get("census-api-key"))
+    }
+  
+  #pull data
+  town_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    clean_names(case = "all_caps") %>%
+    filter(POPGROUP_TTL == "Total population") %>%
+    select(-NAME_2, GEO_ID, POPGROUP, POPGROUP_TTL, STATE, PLACE) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
+    filter(grepl("^PCT.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$", variable)) %>%
+    left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
+    mutate(CensusPlaceCode = as.character(place_code)) %>%
+    mutate(estimate = as.numeric(as.character(estimate))) %>% #numbers being stored as factors
+    filter(grepl("\\d{2,}", label),
+           !grepl("10 years|11 years", label)
+           ) #filter to 12+
+  
+  over_12_pop = sum(town_pull$estimate)
+
+  return(over_12_pop)
+  
+})
+
+#combine separate town files into one
+over_12_by_muni_table = munis %>%
+  left_join(bind_cols("CensusPlaceCode" = names(over_12_by_muni), 
+                                  "Population2010_Over12" = as.numeric(over_12_by_muni)),
+                      by = "CensusPlaceCode") %>%
+  mutate(PercentOver12 = round(Population2010_Over12/Population2010*100, 2)) %>%
+  select(Municipality, CensusPlaceCode, Population2010, Population2010_Over12, PercentOver12)
+
+write_csv(over_12_by_muni_table, "decennial-2010-over-12-by-muni.csv")  
+
+#over 12 overall
+devtools::source_url("https://github.com/Cook-County-Department-of-Public-Health/ccdph-functions/blob/master/census-functions.R?raw=TRUE")
+
+over_12_vars = dec_vars %>%
+  filter(concept == "SEX BY AGE") %>%
+  filter(grepl("\\d{2,}", label),
+           !grepl("10 years|11 years", label)
+           ) %>% #filter to 12+
+  rowwise() %>%
+  mutate(ccdph_population = ccdph_census_population(name, sumfile = "sf2"))
+  
+
+ccdph_over_12 = sum(over_12_vars$ccdph_population) #1909596
+```
+
+
+#Single age pops for ccdph jurisdiction
+```{r sf2_single_age_pops}
+#load in sf2 variable names
+dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf2/variables") %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+devtools::source_url("https://github.com/Cook-County-Department-of-Public-Health/ccdph-functions/blob/master/census-functions.R?raw=TRUE")
+
+#single age pops overall ccdph jurisdiction
+single_age_pops = dec_vars %>%
+  filter(concept == "SEX BY AGE") %>%
+  filter(grepl("\\d", label)) %>% #filter out summaries
+  mutate(sex = ifelse(grepl("Female", label), "Female", "Male"),
+         age = gsub("^.*ale!!", "", label)
+         ) %>%
+  rowwise() %>%
+  mutate(ccdph_population_2010 = ccdph_census_population(name, sumfile = "sf2")) %>%
+  arrange(name)
+
+write_csv(single_age_pops, "decennial-2010-age-sex-single-age-ccdph-jurisdiction.csv")
+
+```
+
+
+
+```{r general_examples}
+
+#pull decennial variable for all of cook county
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county:031&in=state:17&key=", key_get("census-api-key")))
+
+#pull decennial variable for place within cook county -- NOTE:place requires "in=state:" clause to get data
+#whole muni
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=place:01010&in=state:17&key=", key_get("census-api-key")))
+#partial muni
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20place:03883&key=", key_get("census-api-key")))
+
+#pull variable group from decennial
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P12)&for=place:01010&in=state:17&key=", key_get("census-api-key")))
+
+#pull single estimate from ACS (rather than group as above)
+fromJSON(paste0("https://api.census.gov/data/2019/acs/acs5?get=B01001_001E,NAME&for=place:01010&in=state:17&key=", key_get("census-api-key")))
+
+#pull decennial variable for ZCTA
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=zip%20code%20tabulation%20area:60004&key=", key_get("census-api-key")))
+
+#pull decennial variable for part of ZCTA in Cook
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):60466&key=", key_get("census-api-key")))
+
+#pull decennial variable for part of ZCTA in Cook
+fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):60134&key=", key_get("census-api-key")))
+
+#try pulling for all Illinois (if error then skip, else return -- purrr version of try)
+
+
+
+```
+
+
