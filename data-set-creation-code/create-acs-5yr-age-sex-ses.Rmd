@@ -18,9 +18,9 @@ library(janitor)
 #key_set("census-api-key")
 
 #set api string
-census_api <- "https://api.census.gov/data/2020/acs/acs5"
-vintage <- "2020 5 YR"
-end_year <- 2020
+census_api <- "https://api.census.gov/data/2021/acs/acs5"
+vintage <- "2021 5 YR"
+end_year <- 2021
 
 #load in current munis
 munis <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/2020/decennial-2020-total-muni.csv?raw=TRUE")
@@ -33,69 +33,12 @@ zctas <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/cc
   unique() %>%
   as.character()
 
+#source census functions
+devtools::source_url("https://github.com/Cook-County-Department-of-Public-Health/ccdph-functions/blob/master/census-functions.R?raw=TRUE")
+
 #load in ACS variable names to match with codes
-acs_vars <- fromJSON(paste0(census_api,"/variables")) %>%
-  as.data.frame() %>%
-  row_to_names(row_number = 1)
+acs_vars <- load_vars(census_api)
   
-```
-
-## Function to pull muni data
-
-```{r}
-#function arguments:
-#geo_type - quoted character, either "muni" or "zcta"
-#place_code - quoted character, the census place code for munis
-#variable - quoted character, the variable or table you want to pull
-#group - logical, set to T if pulling a table, F if pulling single variable
-#pop_in_cook - logical, pull only pop within Cook by default, change to F if you want total pops for partial towns
-#NOTE: census_api must exist in global environment
-get_small_geo_pops_acs <- function(geo_type, place_code, variable, group, pop_in_cook = T){
-  
-  #construct api from arguments
-  variable_param <- ifelse(group, paste0("group(", variable,")"), variable)
-  
-  geo_param <- case_when(geo_type == "muni" & pop_in_cook ~ paste0("&for=county%20(or%20part):031&in=state:17%20place:", place_code),
-                         geo_type == "muni" & pop_in_cook == F ~ paste0("&for=place:", place_code, "&in=state:17"),
-                         geo_type == "zcta" & pop_in_cook == F ~ paste0("&for=zip%20code%20tabulation%20area:", place_code))
-  
-  #partial zctas not available in ACS, return error if selected
-  if (geo_type == "zcta" & pop_in_cook) {return("Partial ZCTA populations are not available in ACS surveys. Please revise your function arguments.")}
-  
-  # if (pop_in_cook) {
-  #   api <- paste0(census_api,"?get=NAME,GEO_ID,", variable_param, "&for=county%20(or%20part):031&in=state:17%20place:", place_code, "&key=", key_get("census-api-key"))
-  # } else {
-  #   api <- paste0(census_api,"?get=NAME,GEO_ID,", variable_param, "&for=place:", place_code, "&in=state:17&key=", key_get("census-api-key"))
-  # }
-  api <- paste0(census_api, "?get=NAME,GEO_ID,", variable_param, geo_param, "&key=", key_get("census-api-key"))
-  
-  #pull census data
-  results <- try(fromJSON(api))
-  
-  #stop function if URL doesn't return anything
-  if (class(results) == "try-error") {
-    #stop(paste("The API call failed at place code", place_code))
-    return(paste("The API call failed for place code", place_code))
-  }
-  
-  #clean data
-  town_pull <- results %>% 
-    as.data.frame() %>%
-    row_to_names(row_number = 1) %>%
-    pivot_longer(cols = -c(NAME, GEO_ID), names_to = "variable", values_to = "estimate") %>%
-    filter(grepl("*(E|M)$", variable)) %>%    #keep only population estimates and MOEs (see note below, no annonations present)
-    separate(variable, into = c("variable", "estimate_type"), sep = -1) %>%
-    pivot_wider(c(NAME, variable), names_from = estimate_type, values_from = estimate) %>%
-    rename(estimate = E, moe = M) %>%
-    mutate(variable = paste0(variable, "E")) %>%
-    left_join(acs_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
-    mutate(census_place_code = as.character(place_code)) %>%
-    mutate(estimate = as.numeric(as.character(estimate))) 
-  
-  return(town_pull)
-  
-}
-
 ```
 
 ## Pull table B01001 (sex by age) from 5 year ACS for all CCDPH municipalities
@@ -103,13 +46,13 @@ get_small_geo_pops_acs <- function(geo_type, place_code, variable, group, pop_in
 ```{r acs_muni_age_sex}
 
 #Pull total population for all Cook munis
-acs_muni_age_sex_total <- map(place_codes, ~get_small_geo_pops_acs(place_code = .x, geo_type = "muni", variable = "B01001", group = T, pop_in_cook = F)) %>% 
+acs_muni_age_sex_total <- map(place_codes, ~get_small_geo_pops_acs(census_api, place_code = .x, geo_type = "muni", variable = "B01001", group = T, pop_in_cook = F, acs_vars)) %>% 
   discard(inherits, "character") %>%  
   bind_rows()
 
 #Pull population in Cook for all Cook munis
 #Note: #if interested in seeing failures, change discard() to keep() and drop bind_rows
-acs_muni_age_sex_cook <- map(place_codes, ~get_small_geo_pops_acs(place_code = .x,  geo_type = "muni", variable = "B01001", group = T)) %>%
+acs_muni_age_sex_cook <- map(place_codes, ~get_small_geo_pops_acs(census_api, place_code = .x,  geo_type = "muni", variable = "B01001", group = T, pop_in_cook = T, acs_vars)) %>%
   discard(inherits, "character") %>%  
   bind_rows()
 
@@ -144,7 +87,7 @@ write_csv(acs_muni_age_sex_final, paste0(getwd(),"/acs/acs-5yr-age-sex-by-muni.c
 ```{r acs_zcta_age_sex}
 
 #Pull total population for all Cook zctas (partial not available in ACS)
-acs_zcta_age_sex_total <- map(zctas, ~get_small_geo_pops_acs(place_code = .x, geo_type = "zcta", variable = "B01001", group = T, pop_in_cook = F)) %>% 
+acs_zcta_age_sex_total <- map(zctas, ~get_small_geo_pops_acs(census_api, place_code = .x, geo_type = "zcta", variable = "B01001", group = T, pop_in_cook = F, acs_vars)) %>% 
   discard(inherits, "character") %>%  
   bind_rows()
 
@@ -243,50 +186,33 @@ age_pops_scc_clean <- age_pops_acs_scc %>%
   bind_rows %>%
   pivot_longer(cols = everything(), names_to = "age", values_to = "scc_pop")
 
+#get chicago city estimates
+age_pops_chicago <- get_small_geo_pops_acs(census_api, geo_type = "muni", place_code = "14000", variable = "B01001", group = T, pop_in_cook = F, acs_vars) %>%
+  select(age = label, chicago_pop = estimate)
+
 #clean dataset ccdph and create final
 age_pops_acs_final <- age_pops_acs_ccdph %>%
   bind_cols(names(.), .) %>%
   magrittr::set_colnames(c("age", "ccdph_pop")) %>%
   full_join(age_pops_scc_clean) %>%
+  left_join(age_pops_chicago) %>%
   mutate(age = gsub("^.*\\!\\!", "", age)) %>%
   group_by(age) %>%
   summarise(ccdph_pop = sum(ccdph_pop),
-            scc_pop = sum(scc_pop)) %>%
+            scc_pop = sum(scc_pop),
+            chicago_pop = sum(chicago_pop)) %>%
   ungroup() %>%
   mutate(vintage = vintage) %>%
   mutate(age = factor(age, ordered = T),
          age = fct_relevel(age, c("Under 5 years", "5 to 9 years"), after = 0)) %>%
   arrange(age)
 
-write_csv(age_pops_acs_final, paste0(getwd(),"/acs/acs-5yr-age-sex.csv"))
-
-
-#code added later - Nov 2022 - to add chicago to file
-chicago_age_sex <- fromJSON(paste0(census_api, "?get=NAME,GEO_ID,group(B01001)&for=place:14000&in=state:17&key=", key_get("census-api-key"))) %>% 
-  as.data.frame() %>%
-  row_to_names(row_number = 1) %>%
-  pivot_longer(cols = -c(NAME, GEO_ID), names_to = "variable", values_to = "estimate") %>%
-  filter(grepl("*(E)$", variable)) %>%    #this file only has estimates, consider reformatting in next pull to keep MOEs
-  left_join(acs_vars, by = c("variable" = "name")) %>%   #link back to acs list of variables for label to ensure expected variables are pulled
-  mutate(age_c = gsub("^.*\\!\\!", "", label),
-         estimate = as.numeric(estimate)) %>%
-  filter(!grepl(":", age_c)) %>%
-  group_by(age_c) %>%
-  summarise(chicago_pop = sum(estimate)) %>%
-  ungroup() %>%
-  mutate(age_c = factor(age_c, ordered = T),
-         age_c = fct_relevel(age_c, c("Under 5 years", "5 to 9 years"), after = 0)) %>%
-  arrange(age_c)
-
-age_pops_acs_final <- read_csv(paste0(getwd(),"/acs/acs-5yr-age-sex.csv")) %>%
-  cbind(chicago_age_sex) %>%
-  select(age, ccdph_pop, scc_pop, chicago_pop, vintage)
-
+#save dataset
 write_csv(age_pops_acs_final, paste0(getwd(),"/acs/acs-5yr-age-sex.csv"))
 
 ```
 
-## Get select SES variables for munis
+## Get select SES variables for munis -- if re-running post 2020 vintage, need to update code to use source functions
 
 ```{r ses}
 
