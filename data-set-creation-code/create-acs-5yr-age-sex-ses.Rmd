@@ -212,26 +212,28 @@ write_csv(age_pops_acs_final, paste0(getwd(),"/acs/acs-5yr-age-sex.csv"))
 
 ```
 
-## Get select SES variables for munis -- if re-running post 2020 vintage, need to update code to use source functions
+## Get select SES variables for munis
 
 ```{r ses}
 
-#unemployment - B23025_005 for numerator, B23025_002 for denominator (in civilian labor force, unemployed; universe 16+)
-acs_muni_unemployment_cook <- map(place_codes, ~get_small_geo_pops_acs(place_code = .x,  geo_type = "muni", variable = "B23025", group = T)) %>%
+#unemployment - B23025_005 for numerator, B23025_003 for denominator (in civilian labor force, unemployed; universe 16+)
+acs_muni_unemployment_cook <- map(place_codes, ~get_small_geo_pops_acs(census_api, place_code = .x,  geo_type = "muni", variable = "B23025", group = T,
+                                                                       pop_in_cook = T, acs_vars)) %>%
   discard(inherits, "character") %>%  
   bind_rows()
 
 acs_muni_unemployment_cook_rate <- acs_muni_unemployment_cook %>%
-  filter(variable %in% c("B23025_005E", "B23025_002E")) %>%
+  filter(variable %in% c("B23025_005E", "B23025_003E")) %>%
   select(census_place_code, variable, estimate) %>%
   pivot_wider(names_from = variable, values_from = estimate) %>%
-  mutate(unemploy_rt = round(B23025_005E / B23025_002E * 100, 1)) %>%
+  mutate(unemploy_rt = round(B23025_005E / B23025_003E * 100, 1)) %>%
   left_join(munis) %>%
   filter(district != "OOJ" & exclude_from_analysis == F) %>%
   select(municipality, census_place_code, district, unemploy_rt)
 
 #uninsured - group B27001, no health insurance vars (universe civilian non-institutional)
-acs_muni_uninsured_cook <- map(place_codes, ~get_small_geo_pops_acs(place_code = .x,  geo_type = "muni", variable = "B27001", group = T)) %>%
+acs_muni_uninsured_cook <- map(place_codes, ~get_small_geo_pops_acs(census_api, place_code = .x,  geo_type = "muni", variable = "B27001", group = T,
+                                                                    pop_in_cook = T, acs_vars)) %>%
   discard(inherits, "character") %>%  
   bind_rows()
 
@@ -244,7 +246,8 @@ acs_muni_uninsured_cook_rate <- acs_muni_uninsured_cook %>%
   mutate(uninsure_rt = round(num_uninsured / total * 100, 1))
 
 #percent no high school, group B15001 (universe 18+)
-acs_muni_education_cook <- map(place_codes, ~get_small_geo_pops_acs(place_code = .x,  geo_type = "muni", variable = "B15001", group = T)) %>%
+acs_muni_education_cook <- map(place_codes, ~get_small_geo_pops_acs(census_api, place_code = .x,  geo_type = "muni", variable = "B15001", group = T,
+                                                                    pop_in_cook = T, acs_vars)) %>%
   discard(inherits, "character") %>%  
   bind_rows()
 
@@ -260,9 +263,37 @@ acs_muni_education_cook_rate <- acs_muni_education_cook %>%
 acs_ses_cook_rt <- acs_muni_unemployment_cook_rate %>%
   left_join(acs_muni_uninsured_cook_rate, by = "census_place_code") %>%
   left_join(acs_muni_education_cook_rate, by = "census_place_code") %>%
-  select(municipality, district, contains("rt"))
+  select(municipality, district, 
+         percent_unemployed = unemploy_rt,
+         percent_uninsured = uninsure_rt,
+         percent_no_high_school_degree = no_hs_rt) %>%
+  mutate(vintage = vintage)
 
-write_csv(acs_ses_cook_rt, "C:/Users/Kelley/Downloads/acs_ses_rts.csv")
+write_csv(acs_ses_cook_rt, "acs/acs-5yr-select-ses-by-muni.csv")
+
+#ad hoc - pull acs race eth to get percent nh black/aa by muni (used in scatter plots for hiv report); do offical pull for all race eth at a later date
+acs_muni_race_cook <- map(place_codes, ~get_small_geo_pops_acs(census_api, place_code = .x,  geo_type = "muni", variable = "B03002", group = T,
+                                                                    pop_in_cook = T, acs_vars)) %>%
+  discard(inherits, "character") %>%  
+  bind_rows()
+
+acs_muni_race_cook_rate <- acs_muni_race_cook %>%
+  filter(variable %in% c("B03002_004E", "B03002_001E")) %>%
+  select(census_place_code, variable, estimate) %>%
+  pivot_wider(names_from = variable, values_from = estimate) %>%
+  mutate(percent_nhb = round(B03002_004E / B03002_001E * 100, 1)) %>%
+  left_join(munis) %>%
+  filter(district != "OOJ" & exclude_from_analysis == F) %>%
+  select(municipality, census_place_code, district, percent_nhb)
+
+acs_for_dc <- left_join(acs_ses_cook_rt, acs_muni_race_cook_rate) %>%
+  select(-census_place_code) %>%
+  relocate(percent_nhb, .before = "vintage")
+
+write_csv(acs_for_dc, "acs-ses-vars.csv")
 
 ```
+
+
+
 
