@@ -88,7 +88,7 @@ zip_code,zcta,zcta_2010_pop,zcta_2010_pop_cook,percent_pop,partial_pop,primary_c
 60463,60463,14671,14671,100,FALSE,Palos Heights,100,Southwest,IL_Cook,NA
 60464,60464,9620,9620,100,FALSE,Palos Park,100,Southwest,IL_Cook,NA
 60465,60465,17495,17495,100,FALSE,Palos Hills,100,Southwest,IL_Cook,NA
-60466,60466,22115,18630,84.24,TRUE,Park Forest,83.54,South,IL_Will,NA
+60466,60466,22115,18630,84.24,TRUE,Park Forest,83.54,South,IL_Cook,NA
 60467,60467,26046,23733,91.12,TRUE,Orland Park,88.09,Southwest,IL_Cook,NA
 60469,60469,5930,5930,100,FALSE,Posen,100,South,IL_Cook,NA
 60471,60471,14101,14036,99.54,TRUE,Richton Park,99.27,South,IL_Cook,NA
