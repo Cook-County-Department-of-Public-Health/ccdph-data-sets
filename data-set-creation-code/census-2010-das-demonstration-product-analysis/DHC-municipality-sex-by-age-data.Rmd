@@ -25,6 +25,8 @@ downloads_path <- key_get("downloads_path")
 
 In 2020 and 2021, the Census Bureau released several data products meant to demonstrate the effect of the Bureau's new Disclosure Avoidance System (DAS) on population counts (using 2010 census data). The final demonstration product using the same privacy parameters applied to the 2020 census data was released in September 2023 for sex by age. The University of Minnesota’s IPUMS National Historical Geographic Information System (NHGIS) volunteered to convert the Census Bureau's un-tabulated demonstration data into useful summary formats, linked to the published 2010 summary data. The intent of both organizations was for census data users to use these tabulated files to assess the impact of the DAS on their own local data.  NHGIS tabulated data is located [here](https://www.nhgis.org/privacy-protected-2010-census-demonstration-data#v20210608-files). Information on the DAS is located [here](https://www.census.gov/programs-surveys/decennial-census/decade/2020/planning-management/process/disclosure-avoidance/2020-das-development.html).
 
+Note: Chicago is excluded due to being OOJ.
+
 <hr>
 <br>
 
@@ -85,44 +87,56 @@ places <- places %>%
   right_join(munis)
 
 #write function to calculate changes
-change<- function(dp)
-{
-  dp_string=deparse(substitute(dp))
-  sf_string=gsub('dp','sf',dp_string)
-  sf=eval(parse(text=sf_string))
-  dp-sf
-}
-perc_change<- function(dp)
-{
-  dp_string=deparse(substitute(dp))
-  sf_string=gsub('dp','sf',dp_string)
-  sf=eval(parse(text=sf_string))
-  round((dp-sf)/sf*100,2)
-}
+# change<- function(dp)
+# {
+#   dp_string=deparse(substitute(dp))
+#   sf_string=gsub('dp','sf',dp_string)
+#   sf=eval(parse(text=sf_string))
+#   dp-sf
+# }
+# perc_change<- function(dp)
+# {
+#   dp_string=deparse(substitute(dp))
+#   sf_string=gsub('dp','sf',dp_string)
+#   sf=eval(parse(text=sf_string))
+#   round((dp-sf)/sf*100,2)
+# }
 
 #Calculate absolute change and percent change for all variables of interest
 muni_comparison <- places %>%
   mutate(
-    across(contains("dp"),change,.names="change_{col}"),
-    across(contains("dp"),perc_change,.names="perc_change_{col}"),    
-    across(contains("change"), abs, .names = "abs_{col}")
+         totalpop_change=total_pop_dp-total_pop_sf,
+         perc_totalpop_change=round((total_pop_dp-total_pop_sf)/total_pop_sf*100,2),
+         total_malepop_change=total_male_dp-total_male_sf,
+         perc_total_malepop_change=round((total_male_dp-total_male_sf)/total_male_sf*100,2),
+         male_young_change=male_young_dp-male_young_sf,
+         perc_male_young_change=round((male_young_dp-male_young_sf)/male_young_sf*100,2),
+         male_fifties_change=male_fifties_dp-male_fifties_sf,
+         perc_male_fifties_change=round((male_fifties_dp-male_fifties_sf)/male_fifties_sf*100,2),
+         male_old_change=male_old_dp-male_old_sf,
+         perc_male_old_change=round((male_old_dp-male_old_sf)/male_old_sf*100,2),
+         total_femalepop_change=total_female_dp-total_female_sf,
+         perc_total_femalepop_change=round((total_female_dp-total_female_sf)/total_female_sf*100,2),
+         female_young_change=female_young_dp-female_young_sf,
+         perc_female_young_change=round((female_young_dp-female_young_sf)/female_young_sf*100,2),
+         female_fifties_change=female_fifties_dp-female_fifties_sf,
+         perc_female_fifties_change=round((female_fifties_dp-female_fifties_sf)/female_fifties_sf*100,2),
+         female_old_change=female_old_dp-female_old_sf,
+         perc_female_old_change=round((female_old_dp-female_old_sf)/female_old_sf*100,2),
+      across(contains("change"), abs, .names = "abs_{col}")
     )
+muni_comparison<-muni_comparison[!(muni_comparison$Municipality=="Chicago"),]
 
 #Summary stats
-# max(muni_comparison$abs_absolute_change_total) #largest absolute change of all towns is 31 people (Chicago)
-# max(muni_comparison$abs_percent_change_total) #largest absolute percent change of all towns is 0.52%
-# mean(muni_comparison$absolute_change_total) #mean absolute change is -0.3 (no concerns for directionality)
-# mean(muni_comparison$percent_change_total) #mean percent change is 0.007% (no concerns for directionality)
-
-
-
-
-
+mean(muni_comparison$totalpop_change,na.rm=TRUE) #mean change (no concerns for directionality)
+max(muni_comparison$abs_totalpop_change,na.rm=TRUE) #largest absolute change of all munis
+mean(muni_comparison$perc_totalpop_change,na.rm=TRUE) #mean percent change (no concerns for directionality)
+max(muni_comparison$abs_perc_totalpop_change,na.rm=TRUE) #largest absolute percent change of all munis
 ```
 
 ## Total Municipality Population
 
-The mean absolute change in population between the published 2010 data and the demonstration product data is **-0.3 people**. The largest absolute change in population between the two files is for Chicago with an increase of **31 people** in the demonstration data. The mean percent change in population for all Cook County towns is **0.007%**. There are **0** towns with a percent change in total population of more than 5%. The town with the largest percent change in the demonstration total population counts is Bedford Park with a percent change of **0.52%**. These patterns are reflected in the box plots below.
+The mean absolute change in population between the published 2010 data and the demonstration product data is **-0.56 people**. The largest absolute change in population between the demonstration data and the actual 2010 data is for Hoffman Estates with an increase of **18 people** in the demonstration data. The mean percent change in population for all Cook County towns is **0.007%**. There are **0** towns with a percent change in total population of more than 5%. The town with the largest absolute percent change in the demonstration total population counts is Bedford Park with a percent change of **0.52%**. These patterns are reflected in the box plots below.
 
 <br>
 
@@ -132,9 +146,9 @@ The mean absolute change in population between the published 2010 data and the d
 
 ```{r total_muni_perplot}
 #Plot percent change
-plot_ly(muni_comparison, y = ~percent_change_total, type = "box", 
+plot_ly(muni_comparison, y = ~perc_totalpop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_total), 
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_totalpop_change), 
         hoverinfo = "text") %>%
   layout(xaxis = list(title=""),
          yaxis = list(title="Percent Change"),
@@ -149,9 +163,9 @@ plot_ly(muni_comparison, y = ~percent_change_total, type = "box",
 ```{r total_muni_district}
 
 #Plot percent change by district
-plot_ly(muni_comparison, y = ~percent_change_total, type = "box", 
+plot_ly(muni_comparison, y = ~perc_totalpop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_total), 
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_totalpop_change), 
         hoverinfo = "text") %>%
   layout(xaxis = list(title="SCC District"),
          yaxis = list(title="Percent Change"),
@@ -164,68 +178,56 @@ plot_ly(muni_comparison, y = ~percent_change_total, type = "box",
 <hr>
 <br>
 
-```{r hispanic_summary}
+```{r total_male,eval=FALSE}
 
 #Summary stats
-# max(muni_comparison$abs_absolute_change_hispanic) 
-# mean(muni_comparison$absolute_change_hispanic) 
-# mean(muni_comparison$percent_change_hispanic)
-# skim(muni_comparison$percent_change_hispanic)
+mean(muni_comparison$abs_total_malepop_change,na.rm = TRUE)  #average absolute change in number of males
+max(muni_comparison$abs_total_malepop_change,na.rm = TRUE) #greatest abs change in number of males
+mean(muni_comparison$perc_total_malepop_change,na.rm = TRUE) #average percent change in number of males, directionality
+max(muni_comparison$abs_perc_total_malepop_change,na.rm=TRUE) #greatest abs percent change in number of males
+summary(muni_comparison$perc_total_malepop_change)
 
-hispanic_outliers <- muni_comparison %>%
-  filter(abs_percent_change_hispanic >= 5) %>%
-  select(Municipality, total_pop_sf, hispanic_sf, hispanic_dp, percent_change_hispanic)
-
-```
-
-## Hispanic/Latino Municipality Population
-
-The mean absolute change in the Hispanic/Latino population by municipality between the published 2010 data and the demonstration product data is **-0.12 people**. The largest absolute change in population between the two files is for Chicago with a decrease of **197 people** in the demonstration data. The mean percent change in the Hispanic/Latino population for all Cook County towns is **-0.48%**. There are **13** towns with a percent change in the Hispanic/Latino population of more than 5%. The town with the largest percent change in the demonstration Hispanic/Latino population counts is Robbins with a percent change of **-28.6%**. The median percent change is **0%** and the interquartile range is **[-1.04%, 0.82%]**. The number of outliers and IQR varies by public health district.
-
-<br>
-
-**Conclusions: When aggregated, the variation introduced by the DAS settings for the Hispanic population at the municipal level largely balances out. This means we can be reasonably confident in the 2020 jurisdiction-level Hispanic/Latino population estimate, as calculated by the subtraction method. However, at the individual municipality level, while the majority of towns are within acceptable bounds for percent change, outliers do exist - some with very high levels of distortion. Outliers are more prevalent in areas where the Hispanic/Latino population is low. Calculation of rates for the Hispanic/Latino population at the municipal level should be avoided for the North and South District and must be accompanied by data caveats if performed. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
-
-<br>
-
-```{r hispanic_outliers}
-
-hispanic_outliers %>%
-  arrange(percent_change_hispanic) %>%
-  kable(caption = "Towns with >5% Change in Hispanic/Latino", 
-        col.names = c("Municipality", "Published Total", "Published H/L", "Demonstration H/L", "Percent Change")) %>%
-  kable_styling()
+total_male_outliers <- muni_comparison %>%
+  filter(abs_perc_total_malepop_change >= 5) %>%
+  select(Municipality, total_pop_sf, total_male_sf, total_male_dp, perc_total_malepop_change)
 
 ```
 
+## Total Male Population for Municipality, regardless of Age
+
+The mean absolute change in the total male population by municipality between the published 2010 data and the demonstration product data is **5.29 people**. The largest absolute change in population is for Chicago Heights, with an increase of **23 people** in the demonstration data. The mean percent change in the total male population for all Cook County munis is **-0.02%**. There are **no** towns with a percent change in the total male population of more than 5%. The town with the largest percent change in the demonstration Hispanic/Latino population counts is McCook with a percent change of **-1.85%**. The median percent change is **0%** and the interquartile range is **[-1.04%, 0.82%]**.
+
 <br>
 
-```{r hispanic_muni_perplot}
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the total male population at the municipal level is negligible. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level total male population estimate, as calculated by the subtraction method.**
+
+<br>
+
+```{r total_male_perplot}
 #Plot percent change
-plot_ly(muni_comparison, y = ~percent_change_hispanic, type = "box", 
+plot_ly(muni_comparison, y = ~perc_total_malepop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_hispanic),
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_total_malepop_change),
         hoverinfo = "text") %>%
   layout(xaxis = list(title=""),
          yaxis = list(title="Percent Change"),
-         title = "Percent Change in Hispanic/Latino Municipality Population",
+         title = "Percent Change in Total Male Population for Municipality",
          showlegend = FALSE
         )
-
 ```
 
 <br>
 
-```{r hispanic_muni_district}
+```{r total_male_district}
 
 #Plot percent change by district
-plot_ly(muni_comparison, y = ~percent_change_hispanic, type = "box", 
+plot_ly(muni_comparison, y = ~perc_total_malepop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_hispanic), 
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_total_malepop_change), 
         hoverinfo = "text") %>%
   layout(xaxis = list(title="SCC District"),
          yaxis = list(title="Percent Change"),
-         title = "Percent Change in Hispanic/Latino Municipality Population by District",
+         title = "Percent Change in Total Male Population by District",
          showlegend = FALSE
         )
 
@@ -233,388 +235,432 @@ plot_ly(muni_comparison, y = ~percent_change_hispanic, type = "box",
 
 <hr>
 <br>
-
-```{r black_summary}
+```{r total_female,eval=FALSE}
 
 #Summary stats
-# mean(muni_comparison$absolute_change_black) 
-# max(muni_comparison$abs_absolute_change_black) 
-# mean(muni_comparison$percent_change_black)
-# skim(muni_comparison$percent_change_black)
+mean(muni_comparison$abs_total_femalepop_change,na.rm = TRUE)  #average absolute change in number of females
+max(muni_comparison$abs_total_femalepop_change,na.rm = TRUE) #greatest abs change in number of females
+mean(muni_comparison$perc_total_femalepop_change,na.rm = TRUE) #average percent change in number of females, directionality
+max(muni_comparison$abs_perc_total_femalepop_change,na.rm=TRUE) #greatest abs percent change in females
+summary(muni_comparison$perc_total_femalepop_change)
 
-black_outliers <- muni_comparison %>%
-  filter(abs_percent_change_black >= 5) %>%
-  select(Municipality, total_pop_sf, black_sf, black_dp, percent_change_black)
-
-```
-
-## Non-Hispanic Black Municipality Population
-
-The mean absolute change in the non-Hispanic Black or African American population by municipality between the published 2010 data and the demonstration product data is **2.8 people**. The largest absolute change in population between the two files is for Chicago with an increase of **90 people** in the demonstration data. The mean percent change in the non-Hispanic Black population for all Cook County towns is **-1.38%**. There are **25** towns with a percent change in the non-Hispanic Black population of more than 5%. The town with the largest percent change in the demonstration population data is Forest View with a percent change of **-40%**. The median percent change is **0%** and the interquartile range is **[-1.58%, 0.47%]**. The number of outliers and IQR varies by public health district.
-
-<br>
-
-**Conclusions: When aggregated, the variation introduced by the DAS settings for the non-Hispanic Black population at the municipal level, though larger than for the Hispanic population, largely balances out. This means we can be reasonably confident in the 2020 jurisdiction-level non-Hispanic Black population estimate, as calculated by the subtraction method. However, at the individual municipality level, close to 1 in 5 towns have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where the non-Hispanic Black population is low. Calculation of rates for the non-Hispanic Black population at the municipal level should be advised against for towns outside of the South District. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
-
-<br>
-
-```{r black_outliers}
-
-black_outliers %>%
-  arrange(percent_change_black) %>%
-  kable(caption = "Towns with >5% Change in non-Hispanic Black Population", col.names = c("Municipality", "Published Total", "Published NHB", "Demonstration NHB", "Percent Change")) %>%
-  kable_styling()
+total_female_outliers <- muni_comparison %>%
+  filter(abs_perc_total_femalepop_change >= 5) %>%
+  select(Municipality, total_pop_sf, total_female_sf, total_female_dp, perc_total_femalepop_change)
 
 ```
 
+## Total Female Population for Municipality, regardless of Age
+
+The mean absolute change in the total female population by municipality between the published 2010 data and the demonstration product data is **6.68 people**. The largest absolute change in population is for Chicago Heights, with a decrease of **33 people** in the demonstration data. The mean percent change in the total female population for all Cook County munis is **-0.03%**. There are **no** towns with a percent change in the total female population of more than 5%. The town with the largest percent change in the demonstration female population counts is McCook with a percent change of **2.5%**. The median percent change is **0%** and the interquartile range is **[-0.07%, 0.05%]**.
+
 <br>
 
-```{r black_muni_perplot}
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the total female population at the municipal level is negligible. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level total female population estimate, as calculated by the subtraction method.**
+
+<br>
+
+```{r total_female_perplot}
 #Plot percent change
-plot_ly(muni_comparison, y = ~percent_change_black, type = "box", 
+plot_ly(muni_comparison, y = ~perc_total_femalepop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_black),
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_total_femalepop_change),
         hoverinfo = "text") %>%
   layout(xaxis = list(title=""),
          yaxis = list(title="Percent Change"),
-         title = "Percent Change in non-Hispanic Black Municipality Population",
+         title = "Percent Change in Total Female Population for Municipality",
          showlegend = FALSE
         )
-
 ```
 
 <br>
 
-```{r black_muni_district}
+```{r total_female_district}
 
 #Plot percent change by district
-plot_ly(muni_comparison, y = ~percent_change_black, type = "box", 
+plot_ly(muni_comparison, y = ~perc_total_femalepop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_black), 
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_total_femalepop_change), 
         hoverinfo = "text") %>%
   layout(xaxis = list(title="SCC District"),
          yaxis = list(title="Percent Change"),
-         title = "Percent Change in non-Hispanic Black Municipality Population by District",
+         title = "Percent Change in Total Female Population by District",
          showlegend = FALSE
         )
-
 ```
-
 <hr>
 <br>
-
-```{r asian_summary}
+```{r male_young,eval=FALSE}
 
 #Summary stats
-# mean(muni_comparison$absolute_change_asian) 
-# max(muni_comparison$abs_absolute_change_asian) 
-# skim(muni_comparison$percent_change_asian)
+mean(muni_comparison$abs_male_young_change,na.rm = TRUE)
+max(muni_comparison$abs_male_young_change,na.rm = TRUE)
+mean(muni_comparison$perc_male_young_change,na.rm = TRUE)
+max(muni_comparison$abs_perc_male_young_change,na.rm=TRUE)
+summary(muni_comparison$perc_male_young_change)
 
-asian_outliers <- muni_comparison %>%
-  filter(abs_percent_change_asian >= 5) %>%
-  select(Municipality, total_pop_sf, asian_sf, asian_dp, percent_change_asian)
-
-```
-
-## Non-Hispanic Asian Municipality Population
-
-The mean absolute change in the non-Hispanic Asian population by municipality between the published 2010 data and the demonstration product data is **0.23 people**. The largest absolute change in population between the two files is for Skokie with an increase of **60 people** in the demonstration data. The mean percent change in the non-Hispanic Asian population for all Cook County towns is **1.59%**. There are **33** towns with a percent change in the non-Hispanic Asian population of more than 5%. The town with the largest percent change in the non-Hispanic Asian demonstration data is Hodgkins with a percent change of **100%**. The median percent change is **0%** and the interquartile range is **[-1.77%, 1.12%]**. The number of outliers and IQR varies by public health district.
-
-<br>
-
-**Conclusions: When aggregated, the variation introduced by the DAS settings for the non-Hispanic Asian population at the municipal level, though larger than for the Hispanic population, largely balances out. This means we can be reasonably confident in the 2020 jurisdiction-level non-Hispanic Asian population estimate, as calculated by the subtraction method. However, at the individual municipality level, over 20% of towns have percent changes in population outside acceptable bounds. Outliers are present in all public health districts but distortions are particularly high in the South. Calculation of rates for the non-Hispanic Asian population at the municipal level should be avoided whenever possible. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
-
-<br>
-
-```{r asian_outliers}
-
-asian_outliers %>%
-    arrange(percent_change_asian) %>%
-  kable(caption = "Towns with >5% Change in non-Hispanic Asian Population", col.names = c("Municipality", "Published Total", "Published NHA", "Demonstration NHA", "Percent Change")) %>%
-  kable_styling()
+total_male_young_outliers <- muni_comparison %>%
+  filter(abs_perc_male_young_change >= 5) %>%
+  select(Municipality, total_pop_sf, male_young_sf, male_young_dp, perc_male_young_change)
 
 ```
 
+## Males under 5 years of age by Municipality
+
+The mean absolute change in the male population under 5 years of age by municipality between the published 2010 data and the demonstration product data is **4.17 people**. The largest absolute change in population is for Elgin, with an increase of **23 people** in the demonstration data. The mean percent change in the male population under 5 years for all Cook County munis is **0.15%**. There are **6** towns with a percent change in the male population under 5 years of more than 5%. The town with the largest absolute percent change in the demonstration population counts is Forest View with a percent change of **33.33%**. The median percent change is **0%** and the interquartile range is **[-0.77%, 0.79%]**.
+
 <br>
 
-```{r asian_muni_perplot}
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the male population under 5 years of age at the municipal level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level male population under 5 years estimate, as calculated by the subtraction method. However, at the individual municipality level, 4% of municipalities have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the young male population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of municipalities.**
+
+<br>
+
+```{r total_male_young_perplot}
 #Plot percent change
-plot_ly(muni_comparison, y = ~percent_change_asian, type = "box", 
+plot_ly(muni_comparison, y = ~perc_male_young_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_asian),
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_male_young_change),
         hoverinfo = "text") %>%
   layout(xaxis = list(title=""),
          yaxis = list(title="Percent Change"),
-         title = "Percent Change in non-Hispanic Asian Municipality Population",
+         title = "Percent Change in Male Population Under 5 Years for Municipality",
          showlegend = FALSE
         )
-
 ```
 
 <br>
 
-```{r asian_muni_district}
+```{r total_male_young_district}
 
 #Plot percent change by district
-plot_ly(muni_comparison, y = ~percent_change_asian, type = "box", 
+plot_ly(muni_comparison, y = ~perc_male_young_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
-        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", percent_change_asian), 
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_male_young_change), 
         hoverinfo = "text") %>%
   layout(xaxis = list(title="SCC District"),
          yaxis = list(title="Percent Change"),
-         title = "Percent Change in non-Hispanic Asian Municipality Population by District",
+         title = "Percent Change in Male Population Under 5 Years by District",
          showlegend = FALSE
         )
-
 ```
-
+<br>
+```{r male_young_outliers}
+total_male_young_outliers %>%
+  arrange(perc_male_young_change) %>%
+  kable(caption = "Towns with >5% Change in Male Population Under 5 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
 <hr>
 <br>
+```{r male_fifties,eval=FALSE}
 
-## District Population Estimates
+#Summary stats
+mean(muni_comparison$abs_male_fifties_change,na.rm = TRUE)
+max(muni_comparison$abs_male_fifties_change,na.rm = TRUE)
+mean(muni_comparison$perc_male_fifties_change,na.rm = TRUE)
+max(muni_comparison$abs_perc_male_fifties_change,na.rm=TRUE)
+summary(muni_comparison$perc_male_fifties_change)
 
-Based on the analyses above, individual municipalities may have race and ethnicity population estimates with significant distortion, but these distortions balance each other out when municipalities are aggregated to create jurisdiction level population estimates. CCDPH public health districts are also aggregations of municipalities. The table below displays the percent change in each type of population estimate at the district level.
+total_male_fifties_outliers <- muni_comparison %>%
+  filter(abs_perc_male_fifties_change >= 5) %>%
+  select(Municipality, total_pop_sf, male_fifties_sf, male_fifties_dp, perc_male_fifties_change)
+
+```
+
+## Males 50-54 Years by Municipality
+
+The mean absolute change in the male population 50-54 years of age by municipality between the published 2010 data and the demonstration product data is **4 people**. The largest absolute change in population is for Elgin, with a decrease of **16 people** in the demonstration data. The mean percent change in the male population 50-54 years for all Cook County munis is **-0.02%**. There are **4** towns with a percent change in the male population 50-54 years of more than 5%. The town with the largest absolute percent change in the demonstration population counts is Forest View with a percent change of **-10%**. The median percent change is **0%** and the interquartile range is **[-0.64%, 0.68%]**.
 
 <br>
 
-**Conclusions: When aggregated, the variation introduced by the DAS settings balances out for both total and all racial/ethnic population estimates. District-level population estimates can be used without reservation.**
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the male population 50-54 years of age at the municipal level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level male population 50-54 years estimate, as calculated by the subtraction method. However, at the individual municipality level, 3% of municipalities have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the middle-aged male population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of municipalities.**
 
 <br>
 
-```{r district_cleaning}
+```{r total_male_fifties_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~perc_male_fifties_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_male_fifties_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population 50-54 Years for Municipality",
+         showlegend = FALSE
+        )
+```
 
-district_comparison <- ccdph_places %>% 
-  filter(District != "OOJ" & ExcludeFromAnalysis == F) %>%
-  group_by(District) %>%
-  summarise(across(contains("_"), sum)) %>%
-  ungroup() %>%
-  mutate(absolute_change_total = total_pop_dp - total_pop_sf,
-         percent_change_total = round(absolute_change_total / total_pop_sf * 100, 2),
-         absolute_change_hispanic = hispanic_dp - hispanic_sf,
-         percent_change_hispanic = round(absolute_change_hispanic / hispanic_sf * 100, 2),
-         absolute_change_black = black_dp - black_sf,
-         percent_change_black = round(absolute_change_black / black_sf * 100, 2),
-         absolute_change_asian = asian_dp - asian_sf,
-         percent_change_asian = round(absolute_change_asian / asian_sf * 100, 2),
-         across(contains("change"), abs, .names = "abs_{col}"))
+<br>
 
-district_comparison %>%
-  select(District, starts_with("percent_change")) %>%
-  mutate(across(starts_with("percent_change"), ~paste0(., "%"))) %>%
-  kable(caption = "Percent Change in Population Estimates by District", col.names = c("District", "Total", "Hispanic", "Non-Hispanic Black", "Non-Hispanic Asian")) %>%
+```{r total_male_fifties_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~perc_male_fifties_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_male_fifties_change), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population 50-54 Years by District",
+         showlegend = FALSE
+        )
+```
+<br>
+```{r male_fifties_outliers}
+total_male_fifties_outliers %>%
+  arrange(perc_male_fifties_change) %>%
+  kable(caption = "Towns with >5% Change in Male Population 50-54 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
   kable_styling()
+```
+<hr>
+<br>
+```{r male_old,eval=FALSE}
+
+#Summary stats
+mean(muni_comparison$abs_male_old_change,na.rm = TRUE)
+max(muni_comparison$abs_male_old_change,na.rm = TRUE)
+mean(muni_comparison$perc_male_old_change,na.rm = TRUE)
+max(muni_comparison$abs_perc_male_old_change,na.rm=TRUE)
+summary(muni_comparison$perc_male_old_change)
+
+total_male_old_outliers <- muni_comparison %>%
+  filter(abs_perc_male_old_change >= 5) %>%
+  select(Municipality, total_pop_sf, male_old_sf, male_old_dp, perc_male_old_change)
 
 ```
 
+## Males 85+ Years by Municipality
 
-```{r non_exclusive_race, eval=FALSE}
+The mean absolute change in the male population 85 years and older by municipality between the published 2010 data and the demonstration product data is **4 people**. The largest absolute change in population is for Hanover Park, with an increase of **20 people** in the demonstration data. The mean percent change in the male population 85 years and older for all Cook County munis is **4.26%**. There are **55** towns with a percent change in the male population 85 years and older of more than 5%. The town with the largest absolute percent change in the demonstration population counts is East Hazel Crest with a percent change of **233.33%**. The median percent change is **0.21%** and the interquartile range is **[-2.95%, 4.27%]**.
 
-#Are race estimates any more accurate when ethnicity is disregarded?
-race_alone_comparison <- read_csv(paste0(downloads_path, "nhgis_ppdd_20210608_place.csv")) %>%
-  filter(state == 17) %>%
-  select(gisjoin,
-         name,
-         total_pop_dp = H72001_dp,
-         total_pop_sf = H72001_sf,
-         black_race_dp = H72004_dp,  #population of one race: black alone
-         black_race_sf = H72004_sf,
-         asian_race_dp = H72006_dp, #population of one race: asian alone
-         asian_race_sf = H72006_sf) %>%
-  mutate(CensusPlaceCode = as.numeric(substr(gisjoin, 5, 10))) %>%
-  right_join(munis) %>%
-  mutate(absolute_change_black = black_race_dp - black_race_sf,
-         percent_change_black = round(absolute_change_black / black_race_sf * 100, 2),
-         absolute_change_asian = asian_race_dp - asian_race_sf,
-         percent_change_asian = round(absolute_change_asian / asian_race_sf * 100, 2),
-         across(contains("change"), abs, .names = "abs_{col}"),
-         across(contains("change"), ~na_if(., NaN)),
-         across(contains("change"), ~na_if(., Inf)))
-         # across(contains("change"), ~replace(., is.nan(.), 0)),
-         # across(contains("change"), ~replace(., is.infinite(.), 200)))
+<br>
 
-skim(muni_comparison$percent_change_black)
-skim(race_alone_comparison$percent_change_black)
-race_alone_comparison %>% filter(abs_percent_change_black >= 5) %>% nrow()
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the male population 85 years and older at the municipal level is quite unstable. There are no concerns for directionality. However, this means we cannot be very confident in the 2020 jurisdiction-level male population 85 years and older estimate, as calculated by the subtraction method. At the individual municipality level, 40% of municipalities have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the older male population is low, which is not uncommon. Calculation of rates for the 85+ male population at the municipal level should be advised against for some municipalities. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
 
-skim(muni_comparison$percent_change_asian)
-skim(race_alone_comparison$percent_change_asian)
-race_alone_comparison %>% filter(abs_percent_change_asian >= 5) %>% nrow()
+<br>
 
-#Comments: Using race alone gets slightly less divergent estimates for Black populations (compared to non-Hispanic Blacks) and slightly more divergent estimates for Asian populations (compared to non-Hispanic Asians). Conclusion: using race alone estimates does not result in better estimates than using race and ethnicity combined.
+```{r total_male_old_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~perc_male_old_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_male_old_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population 85 years and older for Municipality",
+         showlegend = FALSE
+        )
+```
 
+<br>
+
+```{r total_male_old_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~perc_male_old_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_male_old_change), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population 85 years and older by District",
+         showlegend = FALSE
+        )
+```
+<br>
+```{r male_old_outliers}
+total_male_old_outliers %>%
+  arrange(perc_male_old_change) %>%
+  kable(caption = "Towns with >5% Change in Male Population 85 years and older", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r female_young,eval=FALSE}
+
+#Summary stats
+mean(muni_comparison$abs_female_young_change,na.rm = TRUE)
+max(muni_comparison$abs_female_young_change,na.rm = TRUE)
+mean(muni_comparison$perc_female_young_change,na.rm = TRUE)
+max(muni_comparison$abs_perc_female_young_change,na.rm=TRUE)
+summary(muni_comparison$perc_female_young_change)
+
+total_female_young_outliers <- muni_comparison %>%
+  filter(abs_perc_female_young_change >= 5) %>%
+  select(Municipality, total_pop_sf, female_young_sf, female_young_dp, perc_female_young_change)
 
 ```
 
-```{r pop_threshold, eval = F}
+## Females under 5 years of age by Municipality
 
-#What are the implications of a minimum population thresholds?
+The mean absolute change in the female population under 5 years of age by municipality between the published 2010 data and the demonstration product data is **4.51 people**. The largest absolute change in population is for Evanston, with a decrease of **21 people** in the demonstration data. The mean percent change in the female population under 5 years for all Cook County munis is **-0.03%**. There are **10** towns with a percent change in the female population under 5 years of more than 5%. The town with the largest absolute percent change in the demonstration population counts is Forest View with a percent change of **19.05%**. The median percent change is **-0.07%** and the interquartile range is **[-0.96%, 0.65%]**.
 
-#How many towns would be censored for Hispanic rates
-sum(muni_comparison$hispanic_sf < 500) #34 (24%)
-sum(muni_comparison$hispanic_sf < 200) #17 (12%)
-sum(muni_comparison$hispanic_sf < 100) #4 (3%)
+<br>
 
-#How many towns would be censored for NHB rates
-sum(muni_comparison$black_sf < 500) #59 (42%)
-sum(muni_comparison$black_sf < 200) #39 (28%)
-sum(muni_comparison$black_sf < 100) #26 (19%)
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the female population under 5 years of age at the municipal level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level female population under 5 years estimate, as calculated by the subtraction method. However, at the individual municipality level, 7% of municipalities have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the young female population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of municipalities.**
 
-#How many towns would be censored for NHA rates
-sum(muni_comparison$asian_sf < 500) #88 (63%)
-sum(muni_comparison$asian_sf < 200) #59 (42%)
-sum(muni_comparison$asian_sf < 100) #36 (26%)
+<br>
 
-#At 500 minimum, can be reasonably sure rates will not be produced for any town with a pop distorted more than 10% but will likely be 1-3 towns with a sub-group pop distortioned between 5 and 10%
-#At 200 minimum, can be reasonably sure that majority of pops won't be distorted more than 10% but will likely be 1-3 towns with a sub-group distortion between 10 and 15%
-#At 100 minimum, can be reasonably sure that majority of rates won't be distorted more than 10% but will likely be 5-10 towns with a sub-group pop distorted between 10 and 20% and 1-3 towns with sub-group distortions higher than 20%
+```{r total_female_young_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~perc_female_young_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_female_young_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population Under 5 Years for Municipality",
+         showlegend = FALSE
+        )
+```
 
+<br>
 
-#How much does a 5% change in population affect a rate?  10%? 15%? 20%?  High incidence? Low incidence?
+```{r total_female_young_district}
 
-## HIGH INCIDENCE ##
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~perc_female_young_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_female_young_change), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population Under 5 Years by District",
+         showlegend = FALSE
+        )
+```
+<br>
+```{r female_young_outliers}
+total_female_young_outliers %>%
+  arrange(perc_female_young_change) %>%
+  kable(caption = "Towns with >5% Change in Female Population Under 5 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r female_fifties,eval=FALSE}
 
-#NHA#
-covid_counts <- readRDS(paste0(key_get("local_shiny_path"), "cases.rds")) %>%
-  filter(raceEth == "Non-Hispanic Asian") %>%
-  group_by(clean_city) %>%
-  tally()
+#Summary stats
+mean(muni_comparison$abs_female_fifties_change,na.rm = TRUE)
+max(muni_comparison$abs_female_fifties_change,na.rm = TRUE)
+mean(muni_comparison$perc_female_fifties_change,na.rm = TRUE)
+max(muni_comparison$abs_perc_female_fifties_change,na.rm=TRUE)
+summary(muni_comparison$perc_female_fifties_change)
 
-devtools::source_url("https://github.com/Cook-County-Department-of-Public-Health/ccdph-functions/blob/master/miscellaneous-helper-functions.R?raw=TRUE")
-
-distortion_comparison <- muni_comparison %>%
-  select(Municipality, asian_sf) %>%
-  filter(asian_sf > 100) %>%
-  mutate(distorted_05 = round(asian_sf * 1.05),
-         distorted_10 = round(asian_sf * 1.1),
-         distorted_15 = round(asian_sf * 1.15),
-         distorted_20 = round(asian_sf * 1.2),
-         distorted_30 = round(asian_sf * 1.3)) %>%
-  full_join(covid_counts, by = c("Municipality" = "clean_city")) %>%
-  drop_na() %>%
-  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
-  select(-rate_n) 
-
-quants <- classInt::classIntervals(distortion_comparison$rate_asian_sf, 5, style = "quantile")$brks
-
-distortion_comparison_2 <- distortion_comparison %>%
-  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
-         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_asian_sf), .names = "change_{.col}")) %>%
-  select(-change_quant_rate_asian_sf)
-
-distortion_comparison_2 %>%
-  filter(asian_sf > 100 & asian_sf < 500) %>%
-  select(asian_sf, contains("quant")) %>%
-  arrange(asian_sf) %>% View()
-
-#For a high incidence disease, a 5% change in population for small sub-groups would put 21% (10 / 48) of these groups in a different quintile; a 10% change in pop would put 33% (16 /48) in a different quintile; a 15% change in pop would put 50% (24) in a different quintile; a 20% change would put 56% (27) in a different quintile. Quintiles are always off by 1 until you reach 30% pop change. 
-
-#NHB#
-covid_counts <- readRDS(paste0(key_get("local_shiny_path"), "cases.rds")) %>%
-  filter(raceEth == "Non-Hispanic Black") %>%
-  group_by(clean_city) %>%
-  tally()
-
-distortion_comparison <- muni_comparison %>%
-  select(Municipality, black_sf) %>%
-  filter(black_sf > 100) %>%
-  mutate(distorted_05 = round(black_sf * 1.05),
-         distorted_10 = round(black_sf * 1.1),
-         distorted_15 = round(black_sf * 1.15),
-         distorted_20 = round(black_sf * 1.2),
-         distorted_30 = round(black_sf * 1.3)) %>%
-  full_join(covid_counts, by = c("Municipality" = "clean_city")) %>%
-  drop_na() %>%
-  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
-  select(-rate_n) 
-
-quants <- classInt::classIntervals(distortion_comparison$rate_black_sf, 5, style = "quantile")$brks
-
-distortion_comparison_2 <- distortion_comparison %>%
-  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
-         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_black_sf), .names = "change_{.col}")) %>%
-  select(-change_quant_rate_black_sf)
-
-distortion_comparison_2 %>%
-  filter(black_sf > 100 & black_sf < 500) %>%
-  select(black_sf, contains("quant")) %>%
-  arrange(black_sf) %>% View()
-
-#Same numbers above for NHB
-#For a high incidence disease, a 5% change in population for small sub-groups would put 9% (3 / 32) of these groups in a different quintile; a 10% change in pop would put 22% (7 / 32) in a different quintile; a 15% change in pop would put 38% (12) in a different quintile; a 20% change would put 44% (14) in a different quintile. Quintiles are always off by 1 until you reach 20% pop change.
-
-
-## LOW/MED INCIDENCE ##
-
-#NHA#
-gc_counts <- read_csv(paste0(key_get("downloads_path"), "sti-demographics-line-list.csv")) %>%
-  janitor::clean_names() %>%
-  filter(disease == "Gonorrhea" & event_year == 2019 & ethnicity != "Hispanic or Latino" & grepl("Asian", race_list)) %>%
-  mutate(city_at_onset = recode(city_at_onset, `Summit Argo` = "Summit")) %>%
-  group_by(city_at_onset) %>%
-  tally()
-
-distortion_comparison <- muni_comparison %>%
-  select(Municipality, asian_sf) %>%
-  filter(asian_sf > 100) %>%
-  mutate(distorted_05 = round(asian_sf * 1.05),
-         distorted_10 = round(asian_sf * 1.1),
-         distorted_15 = round(asian_sf * 1.15),
-         distorted_20 = round(asian_sf * 1.2),
-         distorted_30 = round(asian_sf * 1.3)) %>%
-  full_join(gc_counts, by = c("Municipality" = "city_at_onset")) %>%
-  drop_na() %>%
-  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
-  select(-rate_n) 
-
-quants <- classInt::classIntervals(distortion_comparison$rate_asian_sf, 5, style = "quantile")$brks
-
-distortion_comparison_2 <- distortion_comparison %>%
-  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
-         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_asian_sf), .names = "change_{.col}")) %>%
-  select(-change_quant_rate_asian_sf)
-
-distortion_comparison_2 %>%
-  filter(asian_sf > 100 & asian_sf < 500) %>%
-  select(asian_sf, contains("quant")) %>%
-  arrange(asian_sf) %>% View()
-
-#For a low incidence disease, a 5%, 10%, 15%, and 20% change in population for small sub-groups all had same effect - 20% (1 in 5) would put in a different quintile. > 20% resulted in 40% (2 in 5) off by 1 quintile.
-
-#NHB#
-gc_counts <- read_csv(paste0(key_get("downloads_path"), "sti-demographics-line-list.csv")) %>%
-  janitor::clean_names() %>%
-  filter(disease == "Gonorrhea" & event_year == 2019 & ethnicity != "Hispanic or Latino" & grepl("Black", race_list)) %>%
-  mutate(city_at_onset = recode(city_at_onset, `Summit Argo` = "Summit")) %>%
-  group_by(city_at_onset) %>%
-  tally()
-
-distortion_comparison <- muni_comparison %>%
-  select(Municipality, black_sf) %>%
-  filter(black_sf > 100) %>%
-  mutate(distorted_05 = round(black_sf * 1.05),
-         distorted_10 = round(black_sf * 1.1),
-         distorted_15 = round(black_sf * 1.15),
-         distorted_20 = round(black_sf * 1.2),
-         distorted_30 = round(black_sf * 1.3)) %>%
-  full_join(gc_counts, by = c("Municipality" = "city_at_onset")) %>%
-  drop_na() %>%
-  mutate(across(where(is.numeric), ~rate(n, .x, 100000), .names = "rate_{.col}")) %>%
-  select(-rate_n) 
-
-quants <- classInt::classIntervals(distortion_comparison$rate_black_sf, 5, style = "quantile")$brks
-
-distortion_comparison_2 <- distortion_comparison %>%
-  mutate(across(contains("rate"), ~cut(.x, breaks = quants, labels = c(1:5), include.lowest = T), .names = "quant_{.col}"),
-         across(contains("quant"), ~as.numeric(.x) - as.numeric(quant_rate_black_sf), .names = "change_{.col}")) %>%
-  select(-change_quant_rate_black_sf)
-
-distortion_comparison_2 %>%
-  filter(black_sf > 100 & black_sf < 500) %>%
-  select(black_sf, contains("quant")) %>%
-  arrange(black_sf) %>% View()
-
-#For a medium incidence disease, a 5% change in population for small sub-groups would put 5% (1 / 19) of these groups in a different quintile; a 10% change in pop would put 16% (3 / 19) in a different quintile; a 15% change in pop would put 32% (6) in a different quintile; a 20% change would put 42% (8) in a different quintile. Quintiles are always off by 1 until you reach >20% pop change.
-
+total_female_fifties_outliers <- muni_comparison %>%
+  filter(abs_perc_female_fifties_change >= 5) %>%
+  select(Municipality, total_pop_sf, female_fifties_sf, female_fifties_dp, perc_female_fifties_change)
 
 ```
 
+## Females 50-54 Years by Municipality
+
+The mean absolute change in the female population 50-54 years of age by municipality between the published 2010 data and the demonstration product data is **3.81 people**. The largest absolute change in population is for Evanston, with an increase of **18 people** in the demonstration data. The mean percent change in the female population 50-54 years for all Cook County munis is **0.55%**. There are **5** towns with a percent change in the female population 50-54 years of more than 5%. The town with the largest absolute percent change in the demonstration population counts is McCook with a percent change of **66.67%**. The median percent change is **0%** and the interquartile range is **[-0.45%, 0.51%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the female population 50-54 years of age at the municipal level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level female population 50-54 years estimate, as calculated by the subtraction method. However, at the individual municipality level, 4% of municipalities have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the middle-aged female population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of municipalities.**
+
+<br>
+
+```{r total_female_fifties_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~perc_female_fifties_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_female_fifties_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population 50-54 Years for Municipality",
+         showlegend = FALSE
+        )
+```
+
+<br>
+
+```{r total_female_fifties_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~perc_female_fifties_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_female_fifties_change), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population 50-54 Years by District",
+         showlegend = FALSE
+        )
+```
+<br>
+```{r female_fifties_outliers}
+total_female_fifties_outliers %>%
+  arrange(perc_female_fifties_change) %>%
+  kable(caption = "Towns with >5% Change in Female Population 50-54 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r female_old,eval=FALSE}
+
+#Summary stats
+mean(muni_comparison$abs_female_old_change,na.rm = TRUE)
+max(muni_comparison$abs_female_old_change,na.rm = TRUE)
+mean(muni_comparison$perc_female_old_change,na.rm = TRUE)
+max(muni_comparison$abs_perc_female_old_change,na.rm=TRUE)
+summary(muni_comparison$perc_female_old_change)
+
+total_female_old_outliers <- muni_comparison %>%
+  filter(abs_perc_female_old_change >= 5) %>%
+  select(Municipality, total_pop_sf, female_old_sf, female_old_dp, perc_female_old_change)
+
+```
+
+## Females 85+ Years by Municipality
+
+The mean absolute change in the female population 85 years and older by municipality between the published 2010 data and the demonstration product data is **5 people**. The largest absolute change in population is for both Mount Prospect and Tinley Park, both with a decrease of **17 people** in the demonstration data. The mean percent change in the female population 85 years and older for all Cook County munis is **2.06%**. There are **34** towns with a percent change in the female population 85 years and older of more than 5%. The town with the largest absolute percent change in the demonstration population counts is Golf with a percent change of **50%**. The median percent change is **0.34%** and the interquartile range is **[-1.56%, 4.27%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the female population 85 years and older at the municipal level is quite unstable. There are no concerns for directionality. At the individual municipality level, 25% of municipalities have percent changes in population outside acceptable bounds. This is better for the male population at the same age, and so we can cautiously use the 2020 jurisdiction-level female population 85 years and older estimate, as calculated by the subtraction method.  As expected, outliers are more common in areas where either the total population is smaller or the older female population is low, which is not uncommon. Calculation of rates for the 85+ female population at the municipal level should be advised against for some municipalities. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
+
+<br>
+
+```{r total_female_old_perplot}
+#Plot percent change
+plot_ly(muni_comparison, y = ~perc_female_old_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Muni: ", Municipality,"<br>", "Percent Change: ", perc_female_old_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population 85 years and older for Municipality",
+         showlegend = FALSE
+        )
+```
+
+<br>
+
+```{r total_female_old_district}
+
+#Plot percent change by district
+plot_ly(muni_comparison, y = ~perc_female_old_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0, color = ~District,
+        text = ~paste("Town: ", Municipality,"<br>", "Percent Change: ", perc_female_old_change), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title="SCC District"),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population 85 years and older by District",
+         showlegend = FALSE
+        )
+```
+<br>
+```{r female_old_outliers}
+total_female_old_outliers %>%
+  arrange(perc_female_old_change) %>%
+  kable(caption = "Towns with >5% Change in Female Population 85 years and older", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+
+```{r}
+rmarkdown::render("C:/Users/burda/OneDrive - Cook County Health/DHC analysis/data-set-creation-code/census-2010-das-demonstration-product-analysis/DHC-municipality-sex-by-age-data.Rmd")
+```
