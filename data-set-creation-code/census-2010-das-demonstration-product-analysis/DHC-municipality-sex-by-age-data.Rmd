@@ -30,7 +30,7 @@ Note: Chicago is excluded due to being OOJ.
 <hr>
 <br>
 
-```{r muni_cleaning, eval = F}
+```{r muni_cleaning, eval = T, include=FALSE}
 
 #Source file: NHGIS Vintage 2022-08-25 Nationwide Files Place
 
@@ -47,10 +47,10 @@ Note: Chicago is excluded due to being OOJ.
 #        demonstration product variables are appended "_dp", published 2010 variables are appended "_sf"
 
 #Download zipped file of places data
-download.file("https://assets.nhgis.org/differential-privacy/v20220825/nhgis_ppdd_20220825_p_place.zip", paste0(downloads_path, "places.zip"))
+#download.file("https://assets.nhgis.org/differential-privacy/v20220825/nhgis_ppdd_20220825_p_place.zip", paste0(downloads_path, "places.zip"))
 
 #Unzip file
-unzip(paste0(downloads_path, "places.zip"), exdir = sub("\\/$", "", downloads_path))
+#unzip(paste0(downloads_path, "places.zip"), exdir = sub("\\/$", "", downloads_path))
 
 #Import places data set, filter to Illinois and target variables
 places <- read_csv(paste0(downloads_path, "nhgis_ppdd_20220825_p_place.csv")) %>%
@@ -144,7 +144,7 @@ The mean absolute change in population between the published 2010 data and the d
 
 <br>
 
-```{r total_muni_perplot}
+```{r total_muni_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_totalpop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -160,7 +160,7 @@ plot_ly(muni_comparison, y = ~perc_totalpop_change, type = "box",
 
 <br>
 
-```{r total_muni_district}
+```{r total_muni_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_totalpop_change, type = "box", 
@@ -178,7 +178,7 @@ plot_ly(muni_comparison, y = ~perc_totalpop_change, type = "box",
 <hr>
 <br>
 
-```{r total_male,eval=FALSE}
+```{r total_male,eval=F}
 
 #Summary stats
 mean(muni_comparison$abs_total_malepop_change,na.rm = TRUE)  #average absolute change in number of males
@@ -186,7 +186,8 @@ max(muni_comparison$abs_total_malepop_change,na.rm = TRUE) #greatest abs change 
 mean(muni_comparison$perc_total_malepop_change,na.rm = TRUE) #average percent change in number of males, directionality
 max(muni_comparison$abs_perc_total_malepop_change,na.rm=TRUE) #greatest abs percent change in number of males
 summary(muni_comparison$perc_total_malepop_change)
-
+```
+```{r include=FALSE}
 total_male_outliers <- muni_comparison %>%
   filter(abs_perc_total_malepop_change >= 5) %>%
   select(Municipality, total_pop_sf, total_male_sf, total_male_dp, perc_total_malepop_change)
@@ -203,7 +204,7 @@ The mean absolute change in the total male population by municipality between th
 
 <br>
 
-```{r total_male_perplot}
+```{r total_male_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_total_malepop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -218,7 +219,7 @@ plot_ly(muni_comparison, y = ~perc_total_malepop_change, type = "box",
 
 <br>
 
-```{r total_male_district}
+```{r total_male_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_total_malepop_change, type = "box", 
@@ -243,7 +244,8 @@ max(muni_comparison$abs_total_femalepop_change,na.rm = TRUE) #greatest abs chang
 mean(muni_comparison$perc_total_femalepop_change,na.rm = TRUE) #average percent change in number of females, directionality
 max(muni_comparison$abs_perc_total_femalepop_change,na.rm=TRUE) #greatest abs percent change in females
 summary(muni_comparison$perc_total_femalepop_change)
-
+```
+```{r include=FALSE}
 total_female_outliers <- muni_comparison %>%
   filter(abs_perc_total_femalepop_change >= 5) %>%
   select(Municipality, total_pop_sf, total_female_sf, total_female_dp, perc_total_femalepop_change)
@@ -260,7 +262,7 @@ The mean absolute change in the total female population by municipality between 
 
 <br>
 
-```{r total_female_perplot}
+```{r total_female_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_total_femalepop_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -275,7 +277,7 @@ plot_ly(muni_comparison, y = ~perc_total_femalepop_change, type = "box",
 
 <br>
 
-```{r total_female_district}
+```{r total_female_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_total_femalepop_change, type = "box", 
@@ -298,11 +300,11 @@ max(muni_comparison$abs_male_young_change,na.rm = TRUE)
 mean(muni_comparison$perc_male_young_change,na.rm = TRUE)
 max(muni_comparison$abs_perc_male_young_change,na.rm=TRUE)
 summary(muni_comparison$perc_male_young_change)
-
+```
+```{r include=FALSE}
 total_male_young_outliers <- muni_comparison %>%
   filter(abs_perc_male_young_change >= 5) %>%
   select(Municipality, total_pop_sf, male_young_sf, male_young_dp, perc_male_young_change)
-
 ```
 
 ## Males under 5 years of age by Municipality
@@ -315,7 +317,7 @@ The mean absolute change in the male population under 5 years of age by municipa
 
 <br>
 
-```{r total_male_young_perplot}
+```{r total_male_young_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_male_young_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -330,7 +332,7 @@ plot_ly(muni_comparison, y = ~perc_male_young_change, type = "box",
 
 <br>
 
-```{r total_male_young_district}
+```{r total_male_young_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_male_young_change, type = "box", 
@@ -344,7 +346,7 @@ plot_ly(muni_comparison, y = ~perc_male_young_change, type = "box",
         )
 ```
 <br>
-```{r male_young_outliers}
+```{r male_young_outliers, echo=FALSE}
 total_male_young_outliers %>%
   arrange(perc_male_young_change) %>%
   kable(caption = "Towns with >5% Change in Male Population Under 5 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
@@ -360,7 +362,8 @@ max(muni_comparison$abs_male_fifties_change,na.rm = TRUE)
 mean(muni_comparison$perc_male_fifties_change,na.rm = TRUE)
 max(muni_comparison$abs_perc_male_fifties_change,na.rm=TRUE)
 summary(muni_comparison$perc_male_fifties_change)
-
+```
+```{r include=FALSE}
 total_male_fifties_outliers <- muni_comparison %>%
   filter(abs_perc_male_fifties_change >= 5) %>%
   select(Municipality, total_pop_sf, male_fifties_sf, male_fifties_dp, perc_male_fifties_change)
@@ -377,7 +380,7 @@ The mean absolute change in the male population 50-54 years of age by municipali
 
 <br>
 
-```{r total_male_fifties_perplot}
+```{r total_male_fifties_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_male_fifties_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -392,7 +395,7 @@ plot_ly(muni_comparison, y = ~perc_male_fifties_change, type = "box",
 
 <br>
 
-```{r total_male_fifties_district}
+```{r total_male_fifties_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_male_fifties_change, type = "box", 
@@ -406,7 +409,7 @@ plot_ly(muni_comparison, y = ~perc_male_fifties_change, type = "box",
         )
 ```
 <br>
-```{r male_fifties_outliers}
+```{r male_fifties_outliers, echo=FALSE}
 total_male_fifties_outliers %>%
   arrange(perc_male_fifties_change) %>%
   kable(caption = "Towns with >5% Change in Male Population 50-54 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
@@ -422,10 +425,13 @@ max(muni_comparison$abs_male_old_change,na.rm = TRUE)
 mean(muni_comparison$perc_male_old_change,na.rm = TRUE)
 max(muni_comparison$abs_perc_male_old_change,na.rm=TRUE)
 summary(muni_comparison$perc_male_old_change)
-
+```
+```{r include=FALSE}
 total_male_old_outliers <- muni_comparison %>%
   filter(abs_perc_male_old_change >= 5) %>%
-  select(Municipality, total_pop_sf, male_old_sf, male_old_dp, perc_male_old_change)
+  select(Municipality, total_pop_sf, male_old_sf, male_old_dp, perc_male_old_change) %>%
+  arrange(perc_male_old_change)
+total_male_old_outliers<-total_male_old_outliers[1:10,]
 
 ```
 
@@ -439,7 +445,7 @@ The mean absolute change in the male population 85 years and older by municipali
 
 <br>
 
-```{r total_male_old_perplot}
+```{r total_male_old_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_male_old_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -454,7 +460,7 @@ plot_ly(muni_comparison, y = ~perc_male_old_change, type = "box",
 
 <br>
 
-```{r total_male_old_district}
+```{r total_male_old_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_male_old_change, type = "box", 
@@ -468,7 +474,7 @@ plot_ly(muni_comparison, y = ~perc_male_old_change, type = "box",
         )
 ```
 <br>
-```{r male_old_outliers}
+```{r male_old_outliers, echo=FALSE}
 total_male_old_outliers %>%
   arrange(perc_male_old_change) %>%
   kable(caption = "Towns with >5% Change in Male Population 85 years and older", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
@@ -484,7 +490,8 @@ max(muni_comparison$abs_female_young_change,na.rm = TRUE)
 mean(muni_comparison$perc_female_young_change,na.rm = TRUE)
 max(muni_comparison$abs_perc_female_young_change,na.rm=TRUE)
 summary(muni_comparison$perc_female_young_change)
-
+```
+```{r include=FALSE}
 total_female_young_outliers <- muni_comparison %>%
   filter(abs_perc_female_young_change >= 5) %>%
   select(Municipality, total_pop_sf, female_young_sf, female_young_dp, perc_female_young_change)
@@ -501,7 +508,7 @@ The mean absolute change in the female population under 5 years of age by munici
 
 <br>
 
-```{r total_female_young_perplot}
+```{r total_female_young_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_female_young_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -516,7 +523,7 @@ plot_ly(muni_comparison, y = ~perc_female_young_change, type = "box",
 
 <br>
 
-```{r total_female_young_district}
+```{r total_female_young_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_female_young_change, type = "box", 
@@ -530,7 +537,7 @@ plot_ly(muni_comparison, y = ~perc_female_young_change, type = "box",
         )
 ```
 <br>
-```{r female_young_outliers}
+```{r female_young_outliers, echo=FALSE}
 total_female_young_outliers %>%
   arrange(perc_female_young_change) %>%
   kable(caption = "Towns with >5% Change in Female Population Under 5 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
@@ -546,7 +553,8 @@ max(muni_comparison$abs_female_fifties_change,na.rm = TRUE)
 mean(muni_comparison$perc_female_fifties_change,na.rm = TRUE)
 max(muni_comparison$abs_perc_female_fifties_change,na.rm=TRUE)
 summary(muni_comparison$perc_female_fifties_change)
-
+```
+```{r include=FALSE}
 total_female_fifties_outliers <- muni_comparison %>%
   filter(abs_perc_female_fifties_change >= 5) %>%
   select(Municipality, total_pop_sf, female_fifties_sf, female_fifties_dp, perc_female_fifties_change)
@@ -563,7 +571,7 @@ The mean absolute change in the female population 50-54 years of age by municipa
 
 <br>
 
-```{r total_female_fifties_perplot}
+```{r total_female_fifties_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_female_fifties_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -578,7 +586,7 @@ plot_ly(muni_comparison, y = ~perc_female_fifties_change, type = "box",
 
 <br>
 
-```{r total_female_fifties_district}
+```{r total_female_fifties_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_female_fifties_change, type = "box", 
@@ -592,7 +600,7 @@ plot_ly(muni_comparison, y = ~perc_female_fifties_change, type = "box",
         )
 ```
 <br>
-```{r female_fifties_outliers}
+```{r female_fifties_outliers, echo=FALSE}
 total_female_fifties_outliers %>%
   arrange(perc_female_fifties_change) %>%
   kable(caption = "Towns with >5% Change in Female Population 50-54 Years", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
@@ -608,10 +616,13 @@ max(muni_comparison$abs_female_old_change,na.rm = TRUE)
 mean(muni_comparison$perc_female_old_change,na.rm = TRUE)
 max(muni_comparison$abs_perc_female_old_change,na.rm=TRUE)
 summary(muni_comparison$perc_female_old_change)
-
+```
+```{r include=FALSE}
 total_female_old_outliers <- muni_comparison %>%
   filter(abs_perc_female_old_change >= 5) %>%
-  select(Municipality, total_pop_sf, female_old_sf, female_old_dp, perc_female_old_change)
+  select(Municipality, total_pop_sf, female_old_sf, female_old_dp, perc_female_old_change) %>%
+  arrange(perc_female_old_change)
+total_female_old_outliers<-total_female_old_outliers[1:10,]
 
 ```
 
@@ -625,7 +636,7 @@ The mean absolute change in the female population 85 years and older by municipa
 
 <br>
 
-```{r total_female_old_perplot}
+```{r total_female_old_perplot, echo=FALSE}
 #Plot percent change
 plot_ly(muni_comparison, y = ~perc_female_old_change, type = "box", 
         boxpoints = "all", jitter = 0.3, pointpos = 0,
@@ -640,7 +651,7 @@ plot_ly(muni_comparison, y = ~perc_female_old_change, type = "box",
 
 <br>
 
-```{r total_female_old_district}
+```{r total_female_old_district, echo=FALSE}
 
 #Plot percent change by district
 plot_ly(muni_comparison, y = ~perc_female_old_change, type = "box", 
@@ -654,13 +665,9 @@ plot_ly(muni_comparison, y = ~perc_female_old_change, type = "box",
         )
 ```
 <br>
-```{r female_old_outliers}
+```{r female_old_outliers, echo=FALSE}
 total_female_old_outliers %>%
   arrange(perc_female_old_change) %>%
   kable(caption = "Towns with >5% Change in Female Population 85 years and older", col.names = c("Municipality", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
   kable_styling()
-```
-
-```{r}
-rmarkdown::render("C:/Users/burda/OneDrive - Cook County Health/DHC analysis/data-set-creation-code/census-2010-das-demonstration-product-analysis/DHC-municipality-sex-by-age-data.Rmd")
 ```

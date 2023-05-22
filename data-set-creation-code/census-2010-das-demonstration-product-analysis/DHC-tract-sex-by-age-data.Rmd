@@ -1,0 +1,521 @@
+---
+title: 'Analysis of 2010 DAS Demonstration Product Data for Tracts: Sex by Age'
+date: 'May 22, 2023'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup_basic, include=FALSE}
+library(tidyverse)
+library(keyring)
+library(plotly)
+library(kableExtra)
+
+downloads_path <- key_get("downloads_path")
+#key_set(downloads_path)   #if not already stored, store your downloads path using keyring
+```
+
+## Background and Data Sources
+
+In 2020 and 2021, the Census Bureau released several data products meant to demonstrate the effect of the Bureau's new Disclosure Avoidance System (DAS) on population counts (using 2010 census data). The final demonstration product using the same privacy parameters applied to the 2020 census data was released in September 2023 for sex by age. The University of Minnesota’s IPUMS National Historical Geographic Information System (NHGIS) volunteered to convert the Census Bureau's un-tabulated demonstration data into useful summary formats, linked to the published 2010 summary data. The intent of both organizations was for census data users to use these tabulated files to assess the impact of the DAS on their own local data.  NHGIS tabulated data is located [here](https://www.nhgis.org/privacy-protected-2010-census-demonstration-data#v20210608-files). Information on the DAS is located [here](https://www.census.gov/programs-surveys/decennial-census/decade/2020/planning-management/process/disclosure-avoidance/2020-das-development.html).
+
+Note: Chicago tracts are excluded due to being OOJ.
+
+<hr>
+<br>
+
+```{r tract_cleaning, eval = T, include=FALSE}
+
+#Source file: NHGIS Vintage 2022-08-25 Nationwide Files Place
+
+#Target variables: P12 is sex by age  
+#        H76001:      Total
+#        H76002:      Male
+#        H76003:      Male: Under 5 years
+#        H76016:      Male: 50 to 54 years
+#        H76025:      Male: 85 years and over
+#        H76026:      Female
+#        H76027:      Female: Under 5 years
+#        H76040:      Female: 50 to 54 years
+#        H76049:      Female: 85 years and over
+#        demonstration product variables are appended "_dp", published 2010 variables are appended "_sf"
+
+#Download zipped file of places data
+#download.file("https://assets.nhgis.org/differential-privacy/v20220825/nhgis_ppdd_20220825_p_tract.zip", paste0(downloads_path, "tract.zip"))
+
+#Unzip file
+#unzip(paste0(downloads_path, "tract.zip"), exdir = sub("\\/$", "", downloads_path))
+
+#Import places data set, filter to Illinois and target variables
+demodata <- read_csv(paste0(downloads_path, "nhgis_ppdd_20220825_p_tract.csv")) %>%
+  filter(state == 17) %>%
+  select(geocode,
+         name,
+         total_pop_dp = H76001_dp,
+         total_pop_sf = H76001_sf,
+         total_male_dp = H76002_dp,
+         total_male_sf = H76002_sf,
+         male_young_dp = H76003_dp,
+         male_young_sf = H76003_sf,
+         male_fifties_dp = H76016_dp,
+         male_fifties_sf = H76016_sf,
+         male_old_dp = H76025_dp,
+         male_old_sf = H76025_sf,
+         total_female_dp = H76026_dp,
+         total_female_sf = H76026_sf,
+         female_young_dp = H76027_dp,
+         female_young_sf = H76027_sf,
+         female_fifties_dp = H76040_dp,
+         female_fifties_sf = H76040_sf,
+         female_old_dp = H76049_dp,
+         female_old_sf = H76049_sf
+) %>%
+  mutate(geocode=gsub('17031','',geocode)) %>%
+  rename(TRACT=geocode)
+
+#Import 2010 CCDPH tract file
+tracts <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/data-set-creation-code/raw-data/SCC_census_tracts_CCDPH_jurisdiciton.csv") %>%
+  mutate(TRACT=as.character(TRACT))
+
+#Filter places dataset to CCDPH tracts using census place code
+tracts <- demodata %>%
+  right_join(tracts)
+
+#Calculate absolute change and percent change for all variables of interest
+tract_comparison <- tracts %>%
+  mutate(
+         totalpop_change=total_pop_dp-total_pop_sf,
+         perc_totalpop_change=round((total_pop_dp-total_pop_sf)/total_pop_sf*100,2),
+         total_malepop_change=total_male_dp-total_male_sf,
+         perc_total_malepop_change=round((total_male_dp-total_male_sf)/total_male_sf*100,2),
+         male_young_change=male_young_dp-male_young_sf,
+         perc_male_young_change=round((male_young_dp-male_young_sf)/male_young_sf*100,2),
+         male_fifties_change=male_fifties_dp-male_fifties_sf,
+         perc_male_fifties_change=round((male_fifties_dp-male_fifties_sf)/male_fifties_sf*100,2),
+         male_old_change=male_old_dp-male_old_sf,
+         perc_male_old_change=round((male_old_dp-male_old_sf)/male_old_sf*100,2),
+         total_femalepop_change=total_female_dp-total_female_sf,
+         perc_total_femalepop_change=round((total_female_dp-total_female_sf)/total_female_sf*100,2),
+         female_young_change=female_young_dp-female_young_sf,
+         perc_female_young_change=round((female_young_dp-female_young_sf)/female_young_sf*100,2),
+         female_fifties_change=female_fifties_dp-female_fifties_sf,
+         perc_female_fifties_change=round((female_fifties_dp-female_fifties_sf)/female_fifties_sf*100,2),
+         female_old_change=female_old_dp-female_old_sf,
+         perc_female_old_change=round((female_old_dp-female_old_sf)/female_old_sf*100,2),
+      across(contains("change"), abs, .names = "abs_{col}")
+    )
+```
+```{r eval=FALSE, include=FALSE}
+#Summary stats
+mean(tract_comparison$totalpop_change,na.rm=TRUE) #mean change (no concerns for directionality)
+max(tract_comparison$abs_totalpop_change,na.rm=TRUE) #largest absolute change of all tracts
+mean(tract_comparison$perc_totalpop_change,na.rm=TRUE) #mean percent change (no concerns for directionality)
+max(tract_comparison$abs_perc_totalpop_change,na.rm=TRUE) #largest absolute percent change of all tracts
+```
+
+## Total tract Population
+
+The mean absolute change in population between the published 2010 data and the demonstration product data is **-0.09 people**. The largest absolute change in population between the demonstration data and the actual 2010 data is **6 people**. The mean percent change in population for all Cook County tracts is **-0.002%**. There are **0** tracts with a percent change in total population of more than 5%. The largest absolute percent change in the demonstration total population counts is **0.25%**. These patterns are reflected in the box plots below.
+
+<br>
+
+**Conclusions: Total tract populations are unlikely to be largely impacted by the 2020 DAS parameters and can be used without reservation.**
+
+<br>
+
+```{r total_tract_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_totalpop_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_totalpop_change), 
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Total Tract Population",
+         showlegend = FALSE
+        )
+
+```
+
+<hr>
+<br>
+
+```{r total_male,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_total_malepop_change,na.rm = TRUE)  #average absolute change in number of males
+max(tract_comparison$abs_total_malepop_change,na.rm = TRUE) #greatest abs change in number of males
+mean(tract_comparison$perc_total_malepop_change,na.rm = TRUE) #average percent change in number of males, directionality
+max(tract_comparison$abs_perc_total_malepop_change,na.rm=TRUE) #greatest abs percent change in number of males
+summary(tract_comparison$perc_total_malepop_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_male_outliers <- tract_comparison %>%
+  filter(abs_perc_total_malepop_change >= 5) %>%
+  select(TRACT, total_pop_sf, total_male_sf, total_male_dp, perc_total_malepop_change)
+```
+
+## Total Male Population for Tract, regardless of Age
+
+The mean absolute change in the total male population by tract between the published 2010 data and the demonstration product data is **3.47 people**. The largest absolute change in population is  **17 people** in the demonstration data. The mean percent change in the total male population for all Cook County tracts is **-0.0002%**. There are **no** tracts with a percent change in the total male population of more than 5%. The largest percent change in the demonstration total male population counts is **1.545%**. The median percent change is **0%** and the interquartile range is **[-0.13%, 0.14%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the total male population at the tract level is negligible. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level total male population estimate, as calculated by the subtraction method.**
+
+<br>
+
+```{r total_male_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_total_malepop_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_total_malepop_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Total Male Population for Tract",
+         showlegend = FALSE
+        )
+```
+<hr>
+<br>
+```{r total_female,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_total_femalepop_change,na.rm = TRUE)  #average absolute change in number of females
+max(tract_comparison$abs_total_femalepop_change,na.rm = TRUE) #greatest abs change in number of females
+mean(tract_comparison$perc_total_femalepop_change,na.rm = TRUE) #average percent change in number of females, directionality
+max(tract_comparison$abs_perc_total_femalepop_change,na.rm=TRUE) #greatest abs percent change in females
+summary(tract_comparison$perc_total_femalepop_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_female_outliers <- tract_comparison %>%
+  filter(abs_perc_total_femalepop_change >= 5) %>%
+  select(TRACT, total_pop_sf, total_female_sf, total_female_dp, perc_total_femalepop_change)
+
+```
+
+## Total Female Population for tract, regardless of Age
+
+The mean absolute change in the total female population by tract between the published 2010 data and the demonstration product data is **3.61 people**. The largest absolute change in population is **15 people** in the demonstration data. The mean percent change in the total female population for all Cook County tracts is **-0.003%**. There are **no** tracts with a percent change in the total female population of more than 5%. The largest percent change in the demonstration female population counts is **1.62%%**. The median percent change is **0%** and the interquartile range is **[-0.12%, 0.13%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the total female population at the tract level is negligible. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level total female population estimate, as calculated by the subtraction method.**
+
+<br>
+
+```{r total_female_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_total_femalepop_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_total_femalepop_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Total Female Population for Tract",
+         showlegend = FALSE
+        )
+```
+<hr>
+<br>
+```{r male_young,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_male_young_change,na.rm = TRUE)
+max(tract_comparison$abs_male_young_change,na.rm = TRUE)
+mean(tract_comparison$perc_male_young_change,na.rm = TRUE)
+max(tract_comparison$abs_perc_male_young_change,na.rm=TRUE)
+summary(tract_comparison$perc_male_young_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_male_young_outliers <- tract_comparison %>%
+  filter(abs_perc_male_young_change >= 5) %>%
+  select(TRACT, total_pop_sf, male_young_sf, male_young_dp, perc_male_young_change) %>%
+  arrange(perc_male_young_change)
+total_male_young_outliers<-total_male_young_outliers[1:10,]
+```
+
+## Males under 5 years of age by Tract
+
+The mean absolute change in the male population under 5 years of age by tract between the published 2010 data and the demonstration product data is **2.95 people**. The largest absolute change in population is  **13 people**. The mean percent change in the male population under 5 years for all Cook County tracts is **0.007%**. There are **53** tracts with a percent change in the male population under 5 years of more than 5%. The largest absolute percent change in the demonstration population counts is **14.81%**. The median percent change is **0%** and the interquartile range is **[-1.52%, 1.71%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the male population under 5 years of age at the tractcipal level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level male population under 5 years estimate, as calculated by the subtraction method. However, at the individual tract level, 11% of tracts have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the young male population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of tracts**.
+
+<br>
+
+```{r total_male_young_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_male_young_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_male_young_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population Under 5 Years for Tract",
+         showlegend = FALSE
+        )
+```
+
+<br>
+
+```{r male_young_outliers, echo=FALSE}
+total_male_young_outliers %>%
+  kable(caption = "Tracts with >5% Change in Male Population Under 5 Years", col.names = c("Tract", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r male_fifties,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_male_fifties_change,na.rm = TRUE)
+max(tract_comparison$abs_male_fifties_change,na.rm = TRUE)
+mean(tract_comparison$perc_male_fifties_change,na.rm = TRUE)
+max(tract_comparison$abs_perc_male_fifties_change,na.rm=TRUE)
+summary(tract_comparison$perc_male_fifties_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_male_fifties_outliers <- tract_comparison %>%
+  filter(abs_perc_male_fifties_change >= 5) %>%
+  select(TRACT, total_pop_sf, male_fifties_sf, male_fifties_dp, perc_male_fifties_change) %>%
+  arrange(perc_male_fifties_change)
+total_male_fifties_outliers<-total_male_fifties_outliers[1:10,]
+
+```
+
+## Males 50-54 Years by Tract
+
+The mean absolute change in the male population 50-54 years of age by tract between the published 2010 data and the demonstration product data is **3 people**. The largest absolute change in population is **12 people** in the demonstration data. The mean percent change in the male population 50-54 years for all Cook County tracts is **-0.007%**. There are **28** tracts with a percent change in the male population 50-54 years of more than 5%. The largest absolute percent change in the demonstration population counts is **9.47%**. The median percent change is **0%** and the interquartile range is **[-1.35%, 1.51%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the male population 50-54 years of age at the tract level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level male population 50-54 years estimate, as calculated by the subtraction method. However, at the individual tract level, 6% of tracts have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the middle-aged male population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of tracts**
+
+<br>
+
+```{r total_male_fifties_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_male_fifties_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_male_fifties_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population 50-54 Years for Tract",
+         showlegend = FALSE
+        )
+```
+
+<br>
+```{r male_fifties_outliers, echo=FALSE}
+total_male_fifties_outliers %>%
+  arrange(perc_male_fifties_change) %>%
+  kable(caption = "tracts with >5% Change in Male Population 50-54 Years", col.names = c("Tract", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r male_old,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_male_old_change,na.rm = TRUE)
+max(tract_comparison$abs_male_old_change,na.rm = TRUE)
+mean(tract_comparison$perc_male_old_change,na.rm = TRUE)
+max(tract_comparison$abs_perc_male_old_change,na.rm=TRUE)
+summary(tract_comparison$perc_male_old_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_male_old_outliers <- tract_comparison %>%
+  filter(abs_perc_male_old_change >= 5) %>%
+  select(TRACT, total_pop_sf, male_old_sf, male_old_dp, perc_male_old_change) %>%
+  arrange(perc_male_old_change)
+total_male_old_outliers<-total_male_old_outliers[1:10,]
+
+```
+
+## Males 85+ Years by Tract
+
+The mean absolute change in the male population 85 years and older by tract between the published 2010 data and the demonstration product data is **3 people**. The largest absolute change in population is **17 people** in the demonstration data. The mean percent change in the male population 85 years and older for all Cook County tracts is **4.26%**. There are **328** tracts with a percent change in the male population 85 years and older of more than 5%. The largest absolute percent change in the demonstration population counts is over **400%**. The median percent change is **0%** and the interquartile range is **[-8%, 11.76%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the male population 85 years and older at the tract level is quite unstable. There are no concerns for directionality. However, this means we cannot be very confident in the 2020 jurisdiction-level male population 85 years and older estimate, as calculated by the subtraction method. At the individual tract level, 70% of tracts have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the older male population is low, which is not uncommon. Calculation of rates for the 85+ male population at the tract level should be advised against for most tracts. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
+
+<br>
+
+```{r total_male_old_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_male_old_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_male_old_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Male Population 85 years and older for Tract",
+         showlegend = FALSE
+        )
+```
+
+<br>
+```{r male_old_outliers, echo=FALSE}
+total_male_old_outliers %>%
+  arrange(perc_male_old_change) %>%
+  kable(caption = "tracts with >5% Change in Male Population 85 years and older", col.names = c("Tract", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r female_young,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_female_young_change,na.rm = TRUE)
+max(tract_comparison$abs_female_young_change,na.rm = TRUE)
+mean(tract_comparison$perc_female_young_change,na.rm = TRUE)
+max(tract_comparison$abs_perc_female_young_change,na.rm=TRUE)
+summary(tract_comparison$perc_female_young_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_female_young_outliers <- tract_comparison %>%
+  filter(abs_perc_female_young_change >= 5) %>%
+  select(TRACT, total_pop_sf, female_young_sf, female_young_dp, perc_female_young_change) %>%
+  arrange(perc_female_young_change)
+total_female_young_outliers<-total_female_young_outliers[1:10,]
+
+```
+
+## Females under 5 years of age by tract
+
+The mean absolute change in the female population under 5 years of age by tract between the published 2010 data and the demonstration product data is **2.7 people**. The largest absolute change in population is **11 people** in the demonstration data. The mean percent change in the female population under 5 years for all Cook County tracts is **0.001%**. There are **39** tracts with a percent change in the female population under 5 years of more than 5%. The largest absolute percent change in the demonstration population counts is **9.91%**. The median percent change is **0%** and the interquartile range is **[-0.96%, 0.65%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the female population under 5 years of age at the tract level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level female population under 5 years estimate, as calculated by the subtraction method. However, at the individual tract level, 8% of tracts have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the young female population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of tracts**.
+
+<br>
+
+```{r total_female_young_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_female_young_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_female_young_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population Under 5 Years for tract",
+         showlegend = FALSE
+        )
+```
+
+<br>
+
+```{r female_young_outliers, echo=FALSE}
+total_female_young_outliers %>%
+  arrange(perc_female_young_change) %>%
+  kable(caption = "tracts with >5% Change in Female Population Under 5 Years", col.names = c("Tract", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r female_fifties,eval=FALSE, include=FALSE}
+#Summary stats
+mean(tract_comparison$abs_female_fifties_change,na.rm = TRUE)
+max(tract_comparison$abs_female_fifties_change,na.rm = TRUE)
+mean(tract_comparison$perc_female_fifties_change,na.rm = TRUE)
+max(tract_comparison$abs_perc_female_fifties_change,na.rm=TRUE)
+summary(tract_comparison$perc_female_fifties_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_female_fifties_outliers <- tract_comparison %>%
+  filter(abs_perc_female_fifties_change >= 5) %>%
+  select(TRACT, total_pop_sf, female_fifties_sf, female_fifties_dp, perc_female_fifties_change) %>%
+  arrange(perc_female_fifties_change)
+total_female_fifties_outliers<-total_female_fifties_outliers[1:10,]
+
+```
+
+## Females 50-54 Years by Tract
+
+The mean absolute change in the female population 50-54 years of age by tract between the published 2010 data and the demonstration product data is **3 people**. The largest absolute change in population is with an increase of **17 people** in the demonstration data. The mean percent change in the female population 50-54 years for all Cook County tracts is **-0.09%**. There are **21** tracts with a percent change in the female population 50-54 years of more than 5%. The largest absolute percent change in the demonstration population counts is **9.47%**. The median percent change is **0%** and the interquartile range is **[-1.47%, 1.20%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the female population 50-54 years of age at the tract level largely balances out. There are no concerns for directionality. This means we can be reasonably confident in the 2020 jurisdiction-level female population 50-54 years estimate, as calculated by the subtraction method. However, at the individual tract level, 4% of tracts have percent changes in population outside acceptable bounds. As expected, outliers are more common in areas where either the total population is smaller or the middle-aged female population is low. While this is notable and something to be wary about, it is not an overarching issue for a majority of tracts**
+
+<br>
+
+```{r total_female_fifties_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_female_fifties_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_female_fifties_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population 50-54 Years for Tract",
+         showlegend = FALSE
+        )
+```
+
+<br>
+```{r female_fifties_outliers, echo=FALSE}
+total_female_fifties_outliers %>%
+  arrange(perc_female_fifties_change) %>%
+  kable(caption = "tracts with >5% Change in Female Population 50-54 Years", col.names = c("Tract", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+<hr>
+<br>
+```{r female_old,eval=FALSE, include=FALSE}
+
+#Summary stats
+mean(tract_comparison$abs_female_old_change,na.rm = TRUE)
+max(tract_comparison$abs_female_old_change,na.rm = TRUE)
+mean(tract_comparison$perc_female_old_change,na.rm = TRUE)
+max(tract_comparison$abs_perc_female_old_change,na.rm=TRUE)
+summary(tract_comparison$perc_female_old_change)
+```
+```{r eval=TRUE, include=FALSE}
+total_female_old_outliers <- tract_comparison %>%
+  filter(abs_perc_female_old_change >= 5) %>%
+  select(TRACT, total_pop_sf, female_old_sf, female_old_dp, perc_female_old_change) %>%
+  arrange(perc_female_old_change)
+total_female_old_outliers<-total_female_old_outliers[1:10,]
+
+```
+
+## Females 85+ Years by tract
+
+The mean absolute change in the female population 85 years and older by tract between the published 2010 data and the demonstration product data is **3.3 people**. The largest absolute change in population is for both Mount Prospect and Tinley Park, both with a decrease of **21 people** in the demonstration data. The mean percent change in the female population 85 years and older for all Cook County tracts is **1.53%**. There are **237** tracts with a percent change in the female population 85 years and older of more than 5%. The largest absolute percent change in the demonstration population counts is **100%**. The median percent change is **0%** and the interquartile range is **[-4.76%, 5.25%]**.
+
+<br>
+
+**Conclusions: When aggregated, the variation introduced by the DAS settings for the female population 85 years and older at the tract level is quite unstable. There are no concerns for directionality. At the individual tract level, 50% of tracts have percent changes in population outside acceptable bounds. This is better than for the male population at the same age.  As expected, outliers are more common in areas where either the total population is smaller or the older female population is low, which is not uncommon. Calculation of rates for the 85+ female population at the tract level should be advised against for some tracts. When rates must be calculated, strong data caveats should be included. Alternatively, a minimum population threshold of 500 or 1000 could be applied, below which rates would be censored.**
+
+<br>
+
+```{r total_female_old_perplot, echo=FALSE}
+#Plot percent change
+plot_ly(tract_comparison, y = ~perc_female_old_change, type = "box", 
+        boxpoints = "all", jitter = 0.3, pointpos = 0,
+        text = ~paste("Tract: ", TRACT,"<br>", "Percent Change: ", perc_female_old_change),
+        hoverinfo = "text") %>%
+  layout(xaxis = list(title=""),
+         yaxis = list(title="Percent Change"),
+         title = "Percent Change in Female Population 85 years and older for Tract",
+         showlegend = FALSE
+        )
+```
+
+<br>
+
+```{r female_old_outliers, echo=FALSE}
+total_female_old_outliers %>%
+  arrange(perc_female_old_change) %>%
+  kable(caption = "tracts with >5% Change in Female Population 85 years and older", col.names = c("Tract", "Published Total", "Published", "Demonstration", "Percent Change")) %>%
+  kable_styling()
+```
+
