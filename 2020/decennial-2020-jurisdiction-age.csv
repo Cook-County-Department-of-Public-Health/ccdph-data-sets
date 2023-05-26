@@ -1,0 +1,47 @@
+variable,sex,age,estimate_ccdph,estimate_scc
+P12_003N,Male,Under 5 years,62725,68892
+P12_004N,Male,5 to 9 years,69918,77223
+P12_005N,Male,10 to 14 years,77969,85910
+P12_006N,Male,15 to 17 years,48820,53805
+P12_007N,Male,18 and 19 years,28350,32408
+P12_008N,Male,20 years,13980,16104
+P12_009N,Male,21 years,13993,15989
+P12_011N,Male,25 to 29 years,68178,75950
+P12_012N,Male,30 to 34 years,69488,76690
+P12_013N,Male,35 to 39 years,72607,79931
+P12_014N,Male,40 to 44 years,71655,79094
+P12_015N,Male,45 to 49 years,71235,78547
+P12_016N,Male,50 to 54 years,72353,79762
+P12_017N,Male,55 to 59 years,75675,82930
+P12_018N,Male,60 and 61 years,30895,33771
+P12_010N,Male,22 to 24 years,41360,46271
+P12_019N,Male,62 to 64 years,44025,48221
+P12_023N,Male,75 to 79 years,29807,32822
+P12_024N,Male,80 to 84 years,19116,20954
+P12_025N,Male,85 years and over,18058,19898
+P12_027N,Female,Under 5 years,59964,65726
+P12_028N,Female,5 to 9 years,67126,73977
+P12_029N,Female,10 to 14 years,74205,81700
+P12_020N,Male,65 and 66 years,26330,29023
+P12_021N,Male,67 to 69 years,34026,37720
+P12_022N,Male,70 to 74 years,46050,50981
+P12_035N,Female,25 to 29 years,67033,74804
+P12_036N,Female,30 to 34 years,70637,78100
+P12_037N,Female,35 to 39 years,76288,84555
+P12_038N,Female,40 to 44 years,75748,83972
+P12_039N,Female,45 to 49 years,75691,83946
+P12_030N,Female,15 to 17 years,46073,50733
+P12_031N,Female,18 and 19 years,26731,30686
+P12_032N,Female,20 years,13255,15376
+P12_033N,Female,21 years,13372,15238
+P12_034N,Female,22 to 24 years,39243,44130
+P12_047N,Female,75 to 79 years,39588,43727
+P12_048N,Female,80 to 84 years,28554,31335
+P12_049N,Female,85 years and over,34595,38110
+P12_040N,Female,50 to 54 years,78244,86405
+P12_041N,Female,55 to 59 years,84080,92113
+P12_042N,Female,60 and 61 years,34833,38194
+P12_043N,Female,62 to 64 years,49219,54091
+P12_044N,Female,65 and 66 years,30146,33260
+P12_045N,Female,67 to 69 years,39999,44139
+P12_046N,Female,70 to 74 years,55885,61940

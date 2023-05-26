@@ -18,7 +18,8 @@ library(janitor)
 #key_set("census-api-key")
 
 #set master API URL
-census_api <- "https://api.census.gov/data/2020/dec/pl"
+census_api <- "https://api.census.gov/data/2020/dec/dhc"
+#census_api <- "https://api.census.gov/data/2020/dec/pl"
 
 #store variables for master URL
 census_var_names <- fromJSON(paste0(census_api, "/variables")) %>%
@@ -55,7 +56,7 @@ get_muni_pops <- function(place_code, variable, group, pop_in_cook = T){
   results <- try(fromJSON(api))
   
   #stop function if URL doesn't return anything
-  if (class(results) == "try-error") {
+  if (any(class(results) == "try-error")) {
     #stop(paste("The API call failed at place code", place_code))
     return(paste("The API call failed for place code", place_code))
   }
@@ -182,6 +183,36 @@ subtraction_race <- data.frame(demographic = c("Hispanic/Latino", "Non-Hispanic 
 
 ```
 
+## Jurisdiction Age Totals - Subtraction Method
+
+Table P12, Sex by Age from DHC for jurisdiction
+
+```{r subtraction_totals_age}
+
+#pull variable names of interest
+age_vars <- filter(census_var_names, grepl("P12_.*N$", name)) 
+
+#pull estimates for ccdph jurisdiction
+age_estimates <- map_dbl(age_vars %>% pull(name), get_jurisdiction_estimate_subtraction)
+
+#pull estimates for scc
+age_estimates_scc <- map_dbl(age_vars %>% pull(name), ~get_jurisdiction_estimate_subtraction(.x, geography = "scc"))
+
+#combine and clean file
+subtraction_age <- cbind(age_vars, age_estimates, age_estimates_scc) %>%
+  filter(!grepl(".*:$", label)) %>%
+  mutate(label = trimws(str_remove(label, "!!Total:!!"))) %>%
+  separate(label, into = c("sex", "age"), sep = ":!!") %>%
+  select(variable = name,
+         sex,
+         age,
+         estimate_ccdph = age_estimates,
+         estimate_scc = age_estimates_scc) %>%
+  arrange(variable)
+
+write_csv(subtraction_age, paste0(getwd(), "/2020/decennial-2020-jurisdiction-age.csv"))
+
+```
 
 ## District Totals
 
