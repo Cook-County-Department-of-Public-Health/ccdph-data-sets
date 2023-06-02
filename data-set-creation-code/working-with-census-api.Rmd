@@ -554,6 +554,9 @@ fromJSON(paste0("https://api.census.gov/data/2010/dec/sf1?get=P001001,NAME&for=c
 
 #try pulling for all Illinois (if error then skip, else return -- purrr version of try)
 
+#pull all county pops from a zip code (note: can't use wildcard for zip here)
+test <- fromJSON(paste0("https://api.census.gov/data/2020/dec/dhc?get=P1_001N,NAME&for=county%20(or%20part):*&in=zip%20code%20tabulation%20area:60010%20state%20(or%20part):17&key=",key_get("census-api-key")))
+
 
 
 ```
