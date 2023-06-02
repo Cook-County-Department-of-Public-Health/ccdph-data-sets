@@ -15,20 +15,22 @@ library(keyring)
 library(janitor)
 
 #get list of zctas in cook
-cook_zctas <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/cook-county-zip-codes.csv?raw=TRUE") %>%
-  drop_na(zcta_2010_pop) %>%
-  pull(zcta)
+cook_zctas <- read_csv(paste0(getwd(), "/2020/decennial-2020-total-zcta.csv")) %>% pull(geoid_zcta)
+
+#set url for current api 
+census_api <- "https://api.census.gov/data/2020/dec/dhc"
+#census_api <- "https://api.census.gov/data/2010/dec/sf1"
+
+#load in variable names to match with codes
+dec_vars <- fromJSON(paste0(census_api, "/variables")) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
 
 ```
 
-## Pull table P12 (sex by age) from decennial 2010 summary file 1 for all Cook ZCTAs -- Total Pop
+## Pull table P12 (sex by age) from decennial for all Cook ZCTAs; Total Pop and Pop in Cook
 
 ```{r zcta_age}
-
-#load in sf1 variable names to match with codes
-dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf1/variables") %>%
-  as.data.frame() %>%
-  row_to_names(row_number = 1)
 
 #Create empty list to store place data
 dec_age_pops_zcta_list <- list()
@@ -36,7 +38,7 @@ dec_age_pops_zcta_list <- list()
 #loop through zcta list to pull data
 for (i in 1:length(cook_zctas)) {
   
-  api <- paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P12)&for=zip%20code%20tabulation%20area:", cook_zctas[[i]], "&key=", key_get("census-api-key"))
+  api <- paste0(census_api,"?get=NAME,group(P12)&for=zip%20code%20tabulation%20area:", cook_zctas[[i]], "&key=", key_get("census-api-key"))
   
   #pull data
   zcta_pull <- fromJSON(api) %>% 
@@ -44,7 +46,7 @@ for (i in 1:length(cook_zctas)) {
     row_to_names(row_number = 1) %>%
     pivot_longer(cols = -NAME, names_to = "variable", values_to = "estimate") %>%
     filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
-    filter(!grepl(".*ERR$", variable)) %>%
+    filter(!grepl(".*ERR$|.*NA", variable)) %>%
     left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to list of variables for label to ensure expected variables are pulled
     mutate(estimate = as.numeric(as.character(estimate)))  #numbers being stored as factors
   
@@ -56,18 +58,55 @@ for (i in 1:length(cook_zctas)) {
 #combine separate town files into one
 dec_age_pops_zcta <- bind_rows(dec_age_pops_zcta_list)
 
+#clean file
 dec_age_pops_zcta_clean <- dec_age_pops_zcta %>%
-  filter(!variable %in% c("P012001", "P012002", "P012026"))  %>% #remove total pop, total male, total female 
-  mutate(label = gsub("Total!!", "", label)) %>%
-  separate(label, into = c("sex", "age"), sep = "!!") %>%
-  mutate(zcta = as.numeric(gsub("^.* ", "", NAME))) %>%
-  select(zcta,
+  filter(!grepl(".*:$", label)) %>%  #remove total pop, total male, total female 
+  mutate(label = trimws(str_remove(label, "!!Total:!!"))) %>%
+  separate(label, into = c("sex", "age"), sep = ":!!") %>%
+  mutate(geoid_zcta = as.numeric(gsub("^.* ", "", NAME))) %>%
+  select(geoid_zcta,
          variable,
          sex,
          age,
-         estimate)
+         total_pop = estimate)
 
-write_csv(dec_age_pops_zcta_clean, "decennial-2010-age-sex-by-zcta.csv")
+
+#REPEAT FOR POP IN COOK
+
+#Create empty list to store place data - cook
+dec_age_pops_zcta_list_cook <- list()
+
+#loop through zcta list to pull data - cook
+for (i in 1:length(cook_zctas)) {
+  
+  api <- paste0(census_api, "?get=NAME,group(P12)&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", cook_zctas[[i]], "&key=", key_get("census-api-key"))
+  
+  #pull data
+  zcta_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "pop_in_cook") %>%
+    filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$|.*NA", variable)) %>%
+    left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to list of variables for label to ensure expected variables are pulled
+    mutate(pop_in_cook = as.numeric(as.character(pop_in_cook)))  #numbers being stored as factors
+  
+  #add results to list
+  dec_age_pops_zcta_list_cook[[i]] <- zcta_pull
+  
+}
+
+#combine separate files into one - cook
+dec_age_pops_zcta_cook <- bind_rows(dec_age_pops_zcta_list_cook) %>%
+  mutate(geoid_zcta = as.numeric(str_extract(NAME,"(?<=ZCTA5 ).*(?=, Illinois)"))) %>%
+  select(geoid_zcta, variable, pop_in_cook)
+
+#create final file
+dec_age_pops_zcta_clean_final <- dec_age_pops_zcta_clean %>%
+  left_join(dec_age_pops_zcta_cook)
+
+#save
+write_csv(dec_age_pops_zcta_clean_final, paste0(getwd(),"/2020/decennial-2020-age-sex-by-zcta.csv"))
 
 ```
 
@@ -124,29 +163,73 @@ write_csv(dec_under_20_pops_zcta_clean, "decennial-2010-under-20-single-year-age
 
 ```
 
-## Pull table P12 (sex by age) from decennial 2010 summary file 1 for all Cook ZCTAs -- Pop in Cook
+## Pull table P11 (ethnicity by race) from decennial for all Cook ZCTAs; Total Pop and Pop in Cook
 
-Originally only needed total pop but pop in cook may be needed by others, re-pull and join to original data set
+(formally table P5)
 
-```{r zcta_age_cook}
+```{r zcta_race}
 
-#get list of zctas in cook
-cook_zctas <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/cook-county-zip-codes.csv?raw=TRUE") %>%
-  drop_na(zcta_2010_pop_cook) %>%
-  pull(zcta)
-
-#load in sf1 variable names to match with codes
-dec_vars <- fromJSON("https://api.census.gov/data/2010/dec/sf1/variables") %>%
-  as.data.frame() %>%
-  row_to_names(row_number = 1)
+#Get mutually exclusive categories of interest
+race_vars <- dec_vars %>%
+  filter(grepl("P11.*N$", name)) %>%  #get all race/eth vars
+  filter(!grepl("races:!", label)) %>%  #filter out 2+ races sub-categories
+  filter(grepl("races:$", label) | grepl(".*[a-z]$", label))  %>% #filter out totals so only mutually exclusive remain
+  mutate(race_eth = case_when(grepl("two", label) ~ "Non-Hispanic Two or More Races",
+                              grepl("White", label) ~ "Non-Hispanic White",
+                              grepl("Black", label) ~ "Non-Hispanic Black",
+                              grepl("Asian", label) ~ "Non-Hispanic Asian",
+                              grepl("Alaska", label) ~ "Non-Hispanic American Indian or Alaska Native",
+                              grepl("Hawaiian", label) ~ "Non-Hispanic Native Hawaiian or Other Pacific Islander",
+                              grepl("Other", label) ~ "Non-Hispanic Other",
+                              TRUE ~ "Hispanic or Latino")) %>%
+  select(variable = name, race_eth)
 
 #Create empty list to store place data
-dec_age_pops_zcta_list <- list()
+dec_race_pops_zcta_list <- list()
 
 #loop through zcta list to pull data
 for (i in 1:length(cook_zctas)) {
   
-  api <- paste0("https://api.census.gov/data/2010/dec/sf1?get=NAME,group(P12)&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", cook_zctas[[i]], "&key=", key_get("census-api-key"))
+  api <- paste0(census_api,"?get=NAME,group(P11)&for=zip%20code%20tabulation%20area:", cook_zctas[[i]], "&key=", key_get("census-api-key"))
+  
+  #pull data
+  zcta_pull <- fromJSON(api) %>% 
+    as.data.frame() %>%
+    row_to_names(row_number = 1) %>%
+    pivot_longer(cols = -NAME, names_to = "variable", values_to = "total_pop") %>%
+    filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
+    filter(!grepl(".*ERR$|.*NA", variable)) %>%
+    left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to list of variables for label to ensure expected variables are pulled
+    mutate(total_pop = as.numeric(as.character(total_pop)))  #numbers being stored as factors
+  
+  #add results to list
+  dec_race_pops_zcta_list[[i]] <- zcta_pull
+  
+}
+
+#combine separate town files into one
+dec_race_pops_zcta <- bind_rows(dec_race_pops_zcta_list)
+
+#clean file
+dec_race_pops_zcta_clean <- dec_race_pops_zcta %>%
+  left_join(race_vars) %>%
+  drop_na(race_eth) %>%
+  mutate(geoid_zcta = as.numeric(gsub("^.* ", "", NAME))) %>%
+  select(geoid_zcta,
+         variable,
+         race_eth,
+         total_pop)
+
+
+#REPEAT FOR POP IN COOK
+
+#Create empty list to store place data - cook
+dec_race_pops_zcta_list_cook <- list()
+
+#loop through zcta list to pull data - cook
+for (i in 1:length(cook_zctas)) {
+  
+  api <- paste0(census_api, "?get=NAME,group(P11)&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", cook_zctas[[i]], "&key=", key_get("census-api-key"))
   
   #pull data
   zcta_pull <- fromJSON(api) %>% 
@@ -154,49 +237,25 @@ for (i in 1:length(cook_zctas)) {
     row_to_names(row_number = 1) %>%
     pivot_longer(cols = -NAME, names_to = "variable", values_to = "pop_in_cook") %>%
     filter(grepl("^P.*", variable)) %>%    #keep only population estimates, no meta data
-    filter(!grepl(".*ERR$", variable)) %>%
+    filter(!grepl(".*ERR$|.*NA", variable)) %>%
     left_join(dec_vars, by = c("variable" = "name")) %>%   #link back to list of variables for label to ensure expected variables are pulled
     mutate(pop_in_cook = as.numeric(as.character(pop_in_cook)))  #numbers being stored as factors
   
   #add results to list
-  dec_age_pops_zcta_list[[i]] <- zcta_pull
+  dec_race_pops_zcta_list_cook[[i]] <- zcta_pull
   
 }
 
-#combine separate town files into one
-dec_age_pops_zcta <- bind_rows(dec_age_pops_zcta_list)
+#combine separate files into one - cook
+dec_race_pops_zcta_cook <- bind_rows(dec_race_pops_zcta_list_cook) %>%
+  mutate(geoid_zcta = as.numeric(str_extract(NAME,"(?<=ZCTA5 ).*(?=, Illinois)"))) %>%
+  select(geoid_zcta, variable, pop_in_cook)
 
-dec_age_pops_zcta_clean <- dec_age_pops_zcta %>%
-  filter(!variable %in% c("P012001", "P012002", "P012026"))  %>% #remove total pop, total male, total female 
-  mutate(label = gsub("Total!!", "", label)) %>%
-  separate(label, into = c("sex", "age"), sep = "!!") %>%
-  mutate(zcta = as.numeric(str_extract(NAME, "\\d{5}"))) %>%
-  select(zcta,
-         variable,
-         sex,
-         age,
-         pop_in_cook)
+#create final file
+dec_race_pops_zcta_clean_final <- dec_race_pops_zcta_clean %>%
+  left_join(dec_race_pops_zcta_cook)
 
-dec_age_zcta_original <- read_csv("decennial-2010-age-sex-by-zcta.csv") %>%
-  rename(total_pop = estimate)
-
-dec_age_zcta_complete <- dec_age_zcta_original %>%
-  full_join(dec_age_pops_zcta_clean)
-
-#check work -- everything matches
-check <- dec_age_zcta_complete %>%
-  group_by(zcta) %>%
-  summarise(total_pop_calc = sum(total_pop),
-            pop_in_cook_calc = sum(pop_in_cook, na.rm = T))
-
-compare <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/cook-county-zip-codes.csv?raw=TRUE") %>%
-  drop_na(zcta_2010_pop) %>%
-  left_join(check) %>%
-  mutate(check_total = zcta_2010_pop == total_pop_calc,
-         check_cook = zcta_2010_pop_cook == pop_in_cook_calc)
-
-#write new file
-write_csv(dec_age_zcta_complete, "decennial-2010-age-sex-by-zcta.csv")
+#save
+write_csv(dec_race_pops_zcta_clean_final, paste0(getwd(),"/2020/decennial-2020-race-ethnicity-by-zcta.csv"))
 
 ```
-
