@@ -163,18 +163,17 @@ write_csv(dec_under_20_pops_zcta_clean, "decennial-2010-under-20-single-year-age
 
 ```
 
-## Pull table P11 (ethnicity by race) from decennial for all Cook ZCTAs; Total Pop and Pop in Cook
+## Pull table P5 (ethnicity by race) from decennial for all Cook ZCTAs; Total Pop and Pop in Cook
 
-(formally table P5)
 
 ```{r zcta_race}
 
 #Get mutually exclusive categories of interest
 race_vars <- dec_vars %>%
-  filter(grepl("P11.*N$", name)) %>%  #get all race/eth vars
-  filter(!grepl("races:!", label)) %>%  #filter out 2+ races sub-categories
-  filter(grepl("races:$", label) | grepl(".*[a-z]$", label))  %>% #filter out totals so only mutually exclusive remain
-  mutate(race_eth = case_when(grepl("two", label) ~ "Non-Hispanic Two or More Races",
+  filter(grepl("P5.*N$", name)) %>%  #get all race/eth vars
+  filter(!grepl("!!Total:!!Hispanic or Latino:!!", label)) %>%  #filter out Hispanic sub-categories
+  filter(!grepl("001|002", name))  %>% #filter out totals so only mutually exclusive remain
+  mutate(race_eth = case_when(grepl("Two", label) ~ "Non-Hispanic Two or More Races",
                               grepl("White", label) ~ "Non-Hispanic White",
                               grepl("Black", label) ~ "Non-Hispanic Black",
                               grepl("Asian", label) ~ "Non-Hispanic Asian",
@@ -190,7 +189,7 @@ dec_race_pops_zcta_list <- list()
 #loop through zcta list to pull data
 for (i in 1:length(cook_zctas)) {
   
-  api <- paste0(census_api,"?get=NAME,group(P11)&for=zip%20code%20tabulation%20area:", cook_zctas[[i]], "&key=", key_get("census-api-key"))
+  api <- paste0(census_api,"?get=NAME,group(P5)&for=zip%20code%20tabulation%20area:", cook_zctas[[i]], "&key=", key_get("census-api-key"))
   
   #pull data
   zcta_pull <- fromJSON(api) %>% 
@@ -229,7 +228,7 @@ dec_race_pops_zcta_list_cook <- list()
 #loop through zcta list to pull data - cook
 for (i in 1:length(cook_zctas)) {
   
-  api <- paste0(census_api, "?get=NAME,group(P11)&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", cook_zctas[[i]], "&key=", key_get("census-api-key"))
+  api <- paste0(census_api, "?get=NAME,group(P5)&for=county%20(or%20part):031&in=state:17%20zip%20code%20tabulation%20area%20(or%20part):", cook_zctas[[i]], "&key=", key_get("census-api-key"))
   
   #pull data
   zcta_pull <- fromJSON(api) %>% 
@@ -254,6 +253,17 @@ dec_race_pops_zcta_cook <- bind_rows(dec_race_pops_zcta_list_cook) %>%
 #create final file
 dec_race_pops_zcta_clean_final <- dec_race_pops_zcta_clean %>%
   left_join(dec_race_pops_zcta_cook)
+
+#check numbers
+total_pop_check <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/2020/decennial-2020-total-zcta.csv?raw=TRUE") %>%
+  pull(total_pop) %>%
+  sum()
+
+total_cook_check <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/blob/main/2020/decennial-2020-total-zcta.csv?raw=TRUE") %>%
+  pull(pop_in_cook) %>%
+  sum()
+
+sum(dec_race_pops_zcta_clean_final$pop_in_cook)
 
 #save
 write_csv(dec_race_pops_zcta_clean_final, paste0(getwd(),"/2020/decennial-2020-race-ethnicity-by-zcta.csv"))
