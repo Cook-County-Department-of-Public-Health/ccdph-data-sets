@@ -39,7 +39,7 @@ write.csv(ccdph_B19013_5yr2019,
 ### POVERTY LEVEL BY TRACT ###
 pov_group <- "B17001" #variable = B17001_002E
 pop_group <- "B01003"
-year = "2020"
+year = "2021"
 
 #call data 
 # pov_metadata <- listCensusMetadata(
@@ -70,10 +70,11 @@ pov_tract <- left_join(pov_tract, pop_tract %>% select(GEO_ID, B01003_001E), by 
 pov_tract <- pov_tract %>%
               mutate(
                 percent_poverty = B17001_002E / B01003_001E,
-                poverty_cat = cut(percent_poverty, breaks = c(0, .05, .10, .20, 1), labels = c("0-4.9%", "5-9.9%", "10-19.9%", "20-100%"), right = F)) %>%
+                poverty_cat = cut(percent_poverty, breaks = c(0, .05, .10, .20, 1), labels = c("0-4.9%", "5-9.9%", "10-19.9%", "20-100%"), right = F),
+                vintage = 2021) %>%
               rename(total_poverty = B17001_002E, total_population = B01003_001E, tract_name = tract, geoid = GEO_ID, name = NAME) %>%
-              select(geoid, name, tract_name, total_population, total_poverty, percent_poverty, poverty_cat)
+              select(geoid, name, tract_name, vintage, total_population, total_poverty, percent_poverty, poverty_cat)
 
 write.csv(pov_tract,
-          paste0(key_get("rk-code-fpath"), "ccdph-data-sets/acs/acs-5yr-2020-poverty-levels-by-tract.csv"), row.names = F)
+          paste0(key_get("rk-code-fpath"), "ccdph-data-sets/acs/acs-5yr-poverty-levels-by-tract.csv"), row.names = F)
 
