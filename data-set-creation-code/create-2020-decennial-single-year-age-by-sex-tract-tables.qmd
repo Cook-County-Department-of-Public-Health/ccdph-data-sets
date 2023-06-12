@@ -18,10 +18,9 @@ library(data.table)
 library(keyring)
 ```
 
+
 # connect to inter-census and inter-spatial SQL Server databases
 ```{r}
-#| label: connect to inter-census database
-
 con_inter_census <- dbConnect(odbc::odbc(),
                                Driver   = "SQL Server",
                                Server   = key_get("ccdph_sql_server"),
@@ -31,18 +30,6 @@ con_inter_spatial <- dbConnect(odbc::odbc(),
                                Driver   = "SQL Server",
                                Server   = key_get("ccdph_sql_server"),
                                Database = "inter-spatial")
-
-```
-
-# import reference 2020 decennial datasets
-```{r}
-#| label: import reference tables from GitHub ccdph-datasets repository
-
-example_df <- read_csv("https://github.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/raw/main/2020/decennial-2020-race-ethnicity-by-muni-cleaned.csv")
-
-example_df %>%
-  select(race_ethnicity) %>%
-  distinct()
 
 ```
 
@@ -61,10 +48,10 @@ groups_census_2020_dhc <- listCensusMetadata(
   include_values = FALSE
 )
 
-# select all P12 (age, sex, race) groups
+# select all PCT12 (age, sex, race) groups
 groups_age_sex_race <- groups_census_2020_dhc %>%
   select(name, description) %>%
-  filter(str_detect(name, "P12")) %>%
+  filter(str_detect(name, "PCT12")) %>%
   distinct() %>%
   arrange(name)
 
@@ -80,18 +67,18 @@ variables_census_2020_dhc <- listCensusMetadata(
 
 ```
 
-# create 2020 decennial tracts by age, sex, race for Cook County
+# create 2020 decennial tracts by single-year age, sex for Cook County
 ```{r}
-# select all P12 (age, sex, race) variables
+# select all PCT12 (age, sex) variables
 variables_age_sex_race <- variables_census_2020_dhc %>%
   select(name, label) %>%
-  filter(str_detect(name, "P12")) %>%
+  filter(str_detect(name, "PCT12")) %>%
   distinct() %>%
   arrange(name)
 
 variables_age_groups <- variables_age_sex_race %>%
-  filter(str_detect(name, "P12_")) %>%
-  mutate(col_number = as.integer(substr(name,5,7)),
+  filter(str_detect(name, "PCT12_")) %>%
+  mutate(col_number = as.integer(substr(name,7,9)),
          label = str_replace_all(label, " !!Total:","Total"),
          label = str_replace_all(label, "Total!!Male:!!",""),
          label = str_replace_all(label, "Total!!Female:!!",""),
@@ -100,18 +87,24 @@ variables_age_groups <- variables_age_sex_race %>%
 
 # groups used for data tables
 # name	description
-# P12   SEX BY AGE FOR SELECTED AGE CATEGORIES
-# P12H	SEX BY AGE FOR SELECTED AGE CATEGORIES (HISPANIC OR LATINO)
-# P12I	SEX BY AGE FOR SELECTED AGE CATEGORIES (WHITE ALONE, NOT HISPANIC OR LATINO)
-# P12J	SEX BY AGE FOR SELECTED AGE CATEGORIES (BLACK OR AFRICAN AMERICAN ALONE, NOT HISPANIC OR LATINO)
-# P12K	SEX BY AGE FOR SELECTED AGE CATEGORIES (AMERICAN INDIAN AND ALASKA NATIVE ALONE, NOT HISPANIC OR LATINO)
-# P12L	SEX BY AGE FOR SELECTED AGE CATEGORIES (ASIAN ALONE, NOT HISPANIC OR LATINO)
-# P12M	SEX BY AGE FOR SELECTED AGE CATEGORIES (NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE, NOT HISPANIC OR LATINO)
-# P12N	SEX BY AGE FOR SELECTED AGE CATEGORIES (SOME OTHER RACE ALONE, NOT HISPANIC OR LATINO)
-# P12O	SEX BY AGE FOR SELECTED AGE CATEGORIES (TWO OR MORE RACES, NOT HISPANIC OR LATINO)
+# PCT12A	SEX BY SINGLE-YEAR AGE (WHITE ALONE)
+# PCT12B	SEX BY SINGLE-YEAR AGE (BLACK OR AFRICAN AMERICAN ALONE)
+# PCT12C	SEX BY SINGLE-YEAR AGE (AMERICAN INDIAN AND ALASKA NATIVE ALONE)
+# PCT12D	SEX BY SINGLE-YEAR AGE (ASIAN ALONE)
+# PCT12E	SEX BY SINGLE-YEAR AGE (NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE)
+# PCT12F	SEX BY SINGLE-YEAR AGE (SOME OTHER RACE ALONE)
+# PCT12G	SEX BY SINGLE-YEAR AGE (TWO OR MORE RACES)
+# PCT12H	SEX BY SINGLE-YEAR AGE (HISPANIC OR LATINO)
+# PCT12I	SEX BY SINGLE-YEAR AGE (WHITE ALONE, NOT HISPANIC OR LATINO)
+# PCT12J	SEX BY SINGLE-YEAR AGE (BLACK OR AFRICAN AMERICAN ALONE, NOT HISPANIC OR LATINO)
+# PCT12K	SEX BY SINGLE-YEAR AGE (AMERICAN INDIAN AND ALASKA NATIVE ALONE, NOT HISPANIC OR LATINO)
+# PCT12L	SEX BY SINGLE-YEAR AGE (ASIAN ALONE, NOT HISPANIC OR LATINO)
+# PCT12M	SEX BY SINGLE-YEAR AGE (NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE, NOT HISPANIC OR LATINO)
+# PCT12N	SEX BY SINGLE-YEAR AGE (SOME OTHER RACE ALONE, NOT HISPANIC OR LATINO)
+# PCT12O	SEX BY SINGLE-YEAR AGE (TWO OR MORE RACES, NOT HISPANIC OR LATINO)
 
-# Download tracts
-grouplist <- c("P12H", "P12I", "P12J", "P12K", "P12L","P12M","P12N","P12O")
+# Download variables by census tract
+grouplist <- c("PCT12H", "PCT12I", "PCT12J", "PCT12K", "PCT12L","PCT12M","PCT12N","PCT12O")
 groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Other", "Non-Hispanic Asian","Non-Hispanic Other","Non-Hispanic Other","Non-Hispanic Multiracial")
 yearlist <- c(2020)
 for (agroup in grouplist) {
@@ -122,22 +115,14 @@ for (agroup in grouplist) {
                            vars = c(agroupname),
                            region = "tract:*", # tracts
                            regionin="state:17+county:031", # places, counties, not msas
-                           key="8f6a0a83c8a2466e3e018a966846c86412d0bb6e")
+                           key=key_get("census_api_key"))
     census_group <- census_group %>% 
       select(-ends_with("NA")) %>%
       mutate(census_group = agroup,
              vintage = ayear,
              source = "https://api.census.gov/data/2020/dec/dhc") %>%
       rename_with(~str_replace(.,agroup,"age"))
-    # acs_group <- acs_group %>% select(-contains("MA"))
-    # acs_group <- acs_group %>% select(-contains("GEO_ID"))
-    # acs_group <- acs_group %>% select(-contains("M_1"))
-    # acs_group <- acs_group %>% select(-contains("M"))
-    # acs_group$year<-ayear 
-    # acs_group$GEOID_tract<-paste0(state,county,tract)
     assign(paste(agroup,"tract",ayear,sep="_"),census_group)
-    # rm(acs_group)
-    # detach(acs_group)
   }
 }
 
@@ -151,14 +136,14 @@ group_categories <- bind_cols(group_list, group_category)
 
 tract_age_sex_race_2020_attr <- tract_age_sex_race_2020 %>%
   left_join(group_categories, by = "census_group") %>%
-  pivot_longer(cols=c(age_001N:age_049N), names_to = "age_sex", values_to = "population") %>%
+  pivot_longer(cols=c(age_001N:age_209N), names_to = "age_sex", values_to = "population") %>%
   mutate(geoid_tract_2020 = paste0(state,county,tract),
          col_number = as.integer(substr(age_sex,5,7)),
          sex = case_when(col_number == 1 ~ "Total",
-                   col_number > 1 & col_number <=25 ~ "Male",
-                   col_number > 25 & col_number <=49 ~ "Female")) %>%
+                   col_number > 2 & col_number <=105 ~ "Male",
+                   col_number > 106 & col_number <=209 ~ "Female")) %>%
   left_join(variables_age_groups, by="col_number") %>%
-  filter(col_number >= 3, col_number != 26) %>%
+  filter(col_number >= 3, col_number != 106) %>%
   group_by(geoid_tract_2020, name_tract = NAME, sex, race, age, vintage, source, col_number) %>%
   summarise(population = sum(population)) %>%
   arrange(geoid_tract_2020,
@@ -175,13 +160,14 @@ tracts_2020_cook_county <- dbReadTable(conn = con_inter_spatial,
 tract_age_sex_race_2020_attr_locations <- tract_age_sex_race_2020_attr %>% 
   left_join(tracts_2020_cook_county, by="geoid_tract_2020")
 
+
 # write table to csv for GitHub and inter-census SQL Server database
 dbWriteTable(conn = con_inter_census, 
-               Id(schema="ref", table="decennial-2020-age-sex-race-ethnicity-by-tract"), 
+               Id(schema="ref", table="decennial-2020-single-year-age-sex-race-by-tract"), 
                overwrite= TRUE,
                tract_age_sex_race_2020_attr_locations)
 
-write_csv(tract_age_sex_race_2020_attr_locations, "C:/Users/christopher.smith/OneDrive - Cook County Health/git_repos/justenvirons/ccdph-data-sets/2020/decennial-2020-age-sex-race-ethnicity-by-tract.csv")
+# write_csv(tract_age_sex_race_2020_attr_locations, "C:/Users/christopher.smith/OneDrive - Cook County Health/git_repos/justenvirons/ccdph-data-sets/2020/decennial-2020-single-year-age-sex-race-ethnicity-by-tract.csv")
 
 ```
 
