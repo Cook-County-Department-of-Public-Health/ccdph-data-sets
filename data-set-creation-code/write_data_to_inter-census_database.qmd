@@ -1,0 +1,60 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# activate required packages
+```{r}
+library(censusapi)
+library(DBI)
+library(odbc)
+library(tigris) 
+library(tidyverse)
+library(tidyr)
+library(dplyr) 
+library(sf)
+library(data.table)
+library(keyring)
+```
+
+
+# connect to inter-census and inter-spatial SQL Server databases
+```{r}
+con_inter_census <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-census")
+
+con_inter_spatial <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-spatial")
+
+```
+
+# Cook County places, total populations
+```{r}
+`decennial-2020-total-muni` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-total-muni.csv") %>%
+  mutate(geoid_place = paste0("17",census_place_code),
+         location = case_when(is.na(district) ~ "SCC",
+                              municipality == "Chicago" ~ "Chicago",
+                              !is.na(district) ~ "CCDPH")) %>%
+  select(
+    name_place = municipality,
+    geoid_place,
+    census_place_code,
+    pop_total = total_pop,
+    pop_in_cook,
+    name_district = district,
+    location,
+    partial,
+    exclude_from_analysis)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-total-muni"), 
+               overwrite= TRUE,
+               `decennial-2020-total-muni`)
+
+```
+
