@@ -202,10 +202,12 @@ munis_single_age_sex_race_2020_attr <- munis_single_age_sex_race_2020 %>%
           col_number) %>%
   left_join(places_cook_county %>% select(name_place, geoid_place, census_place_code, name_district, location, partial, exclude_from_analysis), by="geoid_place") %>%
   select(name_place, geoid_place, census_place_code, sex:age, population,vintage, source, name_district:exclude_from_analysis)
+```
 
 # write table inter-census SQL Server database
+```{r}
 dbWriteTable(conn = con_inter_census, 
-               Id(schema="ref", table="munis_single_age_sex_race_2020"), 
+               Id(schema="ref", table="decennial-2020-single-year-age--sex-race-by-muni"), 
                overwrite= TRUE,
                munis_single_age_sex_race_2020_attr)
 
