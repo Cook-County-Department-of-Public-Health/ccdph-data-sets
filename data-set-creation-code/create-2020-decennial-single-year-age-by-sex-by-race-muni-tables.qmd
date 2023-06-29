@@ -25,6 +25,10 @@ con_inter_census <- dbConnect(odbc::odbc(),
                                Server   = key_get("ccdph_sql_server"),
                                Database = "inter-census")
 
+census_standard_age_groups <-  dbReadTable(conn = con_inter_census, 
+               Id(schema="ref", 
+                  table="census-standard-age-groups"))
+
 ```
 
 # create 2020 decennial census groups and variables tables
@@ -74,7 +78,10 @@ variables_age_groups <- variables_age_sex_race %>%
          label = str_replace_all(label, "Total!!Male:!!",""),
          label = str_replace_all(label, "Total!!Female:!!",""),
          label = str_replace_all(label, "!!","")) %>%
-  select(-name, age = label)
+  select(-name, name_age_1yr = label)
+
+variables_age_groups_mod <- variables_age_groups %>% 
+  left_join(census_standard_age_groups, by="name_age_1yr")
 
 # read muni table from database
 places_cook_county <- dbReadTable(conn = con_inter_census, 
@@ -107,7 +114,7 @@ places_cook_county_partial <- places_cook_county_partial_df$census_place_code
 ```{r}
 
 grouplist <- c("PCT12H", "PCT12I", "PCT12J", "PCT12K", "PCT12L","PCT12M","PCT12N","PCT12O")
-groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Other", "Non-Hispanic Asian","Non-Hispanic Other","Non-Hispanic Other","Non-Hispanic Multiracial")
+groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic American Indian and Alaska Native", "Non-Hispanic Asian","Non-Hispanic Native Hawaiian and other Pacific Islander","Non-Hispanic Some Other","Non-Hispanic Multiracial")
 ayear = 2020
 
 for (agroup in grouplist) {
@@ -167,9 +174,15 @@ for (agroup in grouplist) {
 # bind total other muni tables
 apattern <- paste("_places_all_")
 alist_pattern <- mget(ls(pattern = apattern))
+
+# create comprehensive place table with total populations
 munis_total_single_age_sex_race_2020 <- bind_rows(alist_pattern) %>%
   mutate(geoid_place = paste0(state,place)) %>%  
-  right_join(places_cook_county %>% select(geoid_place), by="geoid_place") %>%
+  right_join(places_cook_county %>% select(geoid_place), by="geoid_place") 
+
+# create comprehensive place table with total populations 
+# and partial places removed
+munis_nopartial_single_age_sex_race_2020 <- munis_total_single_age_sex_race_2020 %>% 
   anti_join(munis_partial_single_age_sex_race_2020, by="geoid_place")
 
 # remove total muni tables from environment
@@ -177,39 +190,82 @@ rm(list=ls(pattern="_places_all_"))
 
 ```
 
-# Bind partial and total municipal tables
+# Bind partial and total municipal population tables
 ```{r}
-munis_single_age_sex_race_2020 <- munis_total_single_age_sex_race_2020 %>% bind_rows(munis_partial_single_age_sex_race_2020)
+# bind partial and non-partial muni tables
+munis_withpartial_single_age_sex_race_2020 <- munis_nopartial_single_age_sex_race_2020 %>% bind_rows(munis_partial_single_age_sex_race_2020)
 
 group_list <- as.data.frame(grouplist) %>% rename(census_group = 1)
 group_category <- as.data.frame(groupname) %>% rename(race = 1)
 group_categories <- bind_cols(group_list, group_category)
 
-munis_single_age_sex_race_2020_attr <- munis_single_age_sex_race_2020 %>%
+# reformat partial and non-partial muni table
+munis_withpartial_single_age_sex_race_2020_attr <- munis_withpartial_single_age_sex_race_2020 %>%
   left_join(group_categories, by = "census_group") %>%
   pivot_longer(cols=c(age_001N:age_209N), names_to = "age_sex", values_to = "population") %>%
   mutate(col_number = as.integer(substr(age_sex,5,7)),
          sex = case_when(col_number == 1 ~ "Total",
                    col_number > 2 & col_number <=105 ~ "Male",
                    col_number > 106 & col_number <=209 ~ "Female")) %>%
-  left_join(variables_age_groups, by="col_number") %>%
   filter(col_number >= 3, col_number != 106) %>%
-  group_by(geoid_place, sex, race, age, vintage, source, col_number) %>%
-  summarise(population = sum(population)) %>%
-  arrange(geoid_place,
+  left_join(places_cook_county %>% select(name_place, geoid_place, census_place_code, name_district, location, partial, exclude_from_analysis), by="geoid_place") %>%
+  left_join(variables_age_groups_mod, by="col_number") %>%
+  select(name_place, 
+         geoid_place, 
+         census_place_code,
+         name_age_1yr:order_age_10yr,
+         sex,
+         race,
+         pop_in_cook = population,
+         name_district:exclude_from_analysis,
+         vintage, 
+         source) %>%
+  arrange(name_place,
           sex,
           race,
-          col_number) %>%
+          order_age_1yr)
+
+# reformat total population muni table
+munis_total_single_age_sex_race_2020_attr <- munis_total_single_age_sex_race_2020 %>%
+  left_join(group_categories, by = "census_group") %>%
+  pivot_longer(cols=c(age_001N:age_209N), names_to = "age_sex", values_to = "population") %>%
+  mutate(col_number = as.integer(substr(age_sex,5,7)),
+         sex = case_when(col_number == 1 ~ "Total",
+                   col_number > 2 & col_number <=105 ~ "Male",
+                   col_number > 106 & col_number <=209 ~ "Female")) %>%
+  filter(col_number >= 3, col_number != 106) %>%
   left_join(places_cook_county %>% select(name_place, geoid_place, census_place_code, name_district, location, partial, exclude_from_analysis), by="geoid_place") %>%
-  select(name_place, geoid_place, census_place_code, sex:age, population,vintage, source, name_district:exclude_from_analysis)
+  left_join(variables_age_groups_mod, by="col_number") %>%
+  select(name_place, 
+         geoid_place, 
+         census_place_code,
+         name_age_1yr:order_age_10yr,
+         sex,
+         race,
+         population,
+         name_district:exclude_from_analysis,
+         vintage, 
+         source) %>%
+  arrange(name_place,
+          sex,
+          race,
+          order_age_1yr)
+
+# add total population column to with partial table
+munis_comp_single_age_sex_race_2020_attr <- munis_withpartial_single_age_sex_race_2020_attr %>%
+  left_join(munis_total_single_age_sex_race_2020_attr %>% select(geoid_place,name_age_1yr,sex,race,pop_total = population), by=c("geoid_place", "name_age_1yr", "sex","race")) %>%
+  select(name_place:race,pop_in_cook,pop_total,name_district:source)
+
 ```
 
 # write table inter-census SQL Server database
 ```{r}
 dbWriteTable(conn = con_inter_census, 
-               Id(schema="ref", table="decennial-2020-single-year-age--sex-race-by-muni"), 
+               Id(schema="ref", table="decennial-2020-single-year-age-sex-race-by-muni"), 
                overwrite= TRUE,
-               munis_single_age_sex_race_2020_attr)
+               munis_comp_single_age_sex_race_2020_attr)
+
+write_csv(munis_comp_single_age_sex_race_2020_attr, "C:/Users/christopher.smith/OneDrive - Cook County Health/git_repos/justenvirons/ccdph-data-sets/2020/decennial-2020-single-year-age-sex-race-by-muni.csv")
 
 ```
 
