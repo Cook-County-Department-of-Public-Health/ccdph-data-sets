@@ -18,7 +18,6 @@ library(data.table)
 library(keyring)
 ```
 
-
 # connect to inter-census and inter-spatial SQL Server databases
 ```{r}
 con_inter_census <- dbConnect(odbc::odbc(),
@@ -30,6 +29,11 @@ con_inter_spatial <- dbConnect(odbc::odbc(),
                                Driver   = "SQL Server",
                                Server   = key_get("ccdph_sql_server"),
                                Database = "inter-spatial")
+
+census_standard_age_groups <-  dbReadTable(conn = con_inter_census, 
+               Id(schema="ref", 
+                  table="census-standard-age-groups"))
+
 
 ```
 
@@ -83,7 +87,10 @@ variables_age_groups <- variables_age_sex_race %>%
          label = str_replace_all(label, "Total!!Male:!!",""),
          label = str_replace_all(label, "Total!!Female:!!",""),
          label = str_replace_all(label, "!!","")) %>%
-  select(-name, age = label)
+  select(-name, name_age_1yr = label)
+
+variables_age_groups_mod <- variables_age_groups %>% 
+  left_join(census_standard_age_groups, by="name_age_1yr")
 
 # groups used for data tables
 # name	description
@@ -105,7 +112,7 @@ variables_age_groups <- variables_age_sex_race %>%
 
 # Download variables by census tract
 grouplist <- c("PCT12H", "PCT12I", "PCT12J", "PCT12K", "PCT12L","PCT12M","PCT12N","PCT12O")
-groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Other", "Non-Hispanic Asian","Non-Hispanic Other","Non-Hispanic Other","Non-Hispanic Multiracial")
+groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic American Indian and Alaska Native", "Non-Hispanic Asian","Non-Hispanic Native Hawaiian and other Pacific Islander","Non-Hispanic Some Other","Non-Hispanic Multiracial")
 yearlist <- c(2020)
 for (agroup in grouplist) {
   for (ayear in yearlist) {
@@ -142,15 +149,13 @@ tract_age_sex_race_2020_attr <- tract_age_sex_race_2020 %>%
          sex = case_when(col_number == 1 ~ "Total",
                    col_number > 2 & col_number <=105 ~ "Male",
                    col_number > 106 & col_number <=209 ~ "Female")) %>%
-  left_join(variables_age_groups, by="col_number") %>%
+  left_join(variables_age_groups_mod, by="col_number") %>%
   filter(col_number >= 3, col_number != 106) %>%
-  group_by(geoid_tract_2020, name_tract = NAME, sex, race, age, vintage, source, col_number) %>%
-  summarise(population = sum(population)) %>%
   arrange(geoid_tract_2020,
           sex,
           race,
           col_number) %>%
-  select(geoid_tract_2020, name_tract, sex, race, age, population, vintage, source)
+  select(geoid_tract_2020, name_tract = NAME, sex, race, name_age_1yr:order_age_10yr, population, vintage, source)
 
 # add location, district attributes to table
 tracts_2020_cook_county <- dbReadTable(conn = con_inter_spatial,
@@ -159,7 +164,6 @@ tracts_2020_cook_county <- dbReadTable(conn = con_inter_spatial,
 
 tract_age_sex_race_2020_attr_locations <- tract_age_sex_race_2020_attr %>% 
   left_join(tracts_2020_cook_county, by="geoid_tract_2020")
-
 
 # write table to csv for GitHub and inter-census SQL Server database
 dbWriteTable(conn = con_inter_census, 
