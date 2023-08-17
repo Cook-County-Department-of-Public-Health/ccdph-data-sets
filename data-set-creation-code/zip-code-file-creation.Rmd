@@ -18,6 +18,9 @@ library(XML)
 #store your census api key - only needs to be done once per computer
 #key_set("census-api-key")
 
+#bring in helpful CCDPH functions
+devtools::source_url("https://github.com/Cook-County-Department-of-Public-Health/ccdph-functions/blob/master/miscellaneous-helper-functions.R?raw=TRUE")
+
 ```
 
 ## Function to use USPS City State Look Up
@@ -68,7 +71,7 @@ Note: Several years of working with Melissa data have not revealed any inaccurac
 
 #As of 2023-06-01, JSON and XML formats for paid users only but Excel can be downloaded from this look-up: https://lookups.melissa.com/home/countyzip/state/?state=IL&fips=17031
 
-melissa_cook_zips <- readxl::read_excel(paste0(keyring::key_get("downloads_path"), "zip_county_17031_202306011155.xlsx")) %>%
+melissa_cook_zips <- readxl::read_excel(file_name("zip_county_17031.*", path = key_get("downloads_path"))) %>%
   janitor::clean_names() %>%
     mutate(primary_city = str_to_title(city),
          zip_code = as.numeric(zip_code),
@@ -140,6 +143,11 @@ zcta_pops_clean <- zcta_pops %>%
          pop_in_cook = population_cook,
          percent_pop, 
          partial)
+
+#Verify all zctas were pulled
+zcta_sp <- tigris::zctas(cb = T, year = 2020, starts_with = "60")
+zcta_sp_cook <- filter(zcta_sp, ZCTA5CE20 %in% melissa_cook_zips$zip_code)
+setdiff(as.numeric(zcta_sp_cook$ZCTA5CE20), zcta_pops_clean$geoid_zcta)
 
 write_csv(zcta_pops_clean, paste0(getwd(), "/2020/decennial-2020-total-zcta.csv"))
 
