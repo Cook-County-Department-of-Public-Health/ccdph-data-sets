@@ -1,0 +1,237 @@
+
+
+# activate required packages
+```{r}
+library(censusapi)
+library(tigris) 
+library(tidyverse)
+library(dplyr) 
+library(keyring)
+library(DBI)
+library(odbc)
+```
+
+# Return all US Buearu of the Census APIs
+```{r}
+
+allCensusApis_df <- listCensusApis()
+
+groups_census_2021_acs5 <- listCensusMetadata(
+  name = "acs/acs5",
+  vintage = 2021,
+  type = "groups",
+  group = NULL,
+  variable_name = NULL,
+  include_values = FALSE
+)
+
+groups_census_2021_acs5_subject <- listCensusMetadata(
+  name = "acs/acs5/subject",
+  vintage = 2021,
+  type = "groups",
+  group = NULL,
+  variable_name = NULL,
+  include_values = FALSE
+)
+```
+
+# Download variables for selected table
+
+
+
+```{r}
+# Variables for ACS data table
+ayear <- "2021"
+agroup <- "S1601"
+acs_groups_vars <- listCensusMetadata(
+  name = "acs/acs5/subject",
+  vintage = ayear,
+  group = agroup,
+  type = "variables"
+)
+
+acs_groups_vars <- acs_groups_vars %>%
+  dplyr::filter(!str_detect(name, "EA"), !str_detect(name, "M")) %>%
+  mutate(
+    label = str_replace_all(label, "Estimate!!", ""),
+    label = str_replace(label, "!!", " "),
+    label = str_replace_all(label, "!!", " ")
+  )
+
+assign(paste("groupvars_", agroup, "_", ayear, sep = ""),
+       acs_groups_vars)
+rm(acs_groups_vars)
+
+```
+
+
+```{r}
+# Variables for ACS data table
+ayear <- "2021"
+agroup <- "C16001"
+acs_groups_vars <- listCensusMetadata(
+  name = "acs/acs5",
+  vintage = ayear,
+  group = agroup,
+  type = "variables"
+)
+
+acs_groups_vars <- acs_groups_vars %>%
+  dplyr::filter(!str_detect(name, "EA"), !str_detect(name, "M")) %>%
+  mutate(
+    label = str_replace_all(label, "Estimate!!", ""),
+    label = str_replace(label, "!!", " "),
+    label = str_replace_all(label, "!!", " ")
+  )
+
+assign(paste("groupvars_", agroup, "_", ayear, sep = ""),
+       acs_groups_vars)
+rm(acs_groups_vars)
+
+groupvars_C16001_2021_sub <- groupvars_C16001_2021 %>%
+  select(name, label) %>%
+  arrange(name)
+
+write_csv(groupvars_C16001_2021_sub, "C:/Temp/language_spoken_at_home_vars_2021.csv")
+
+```
+
+# Download data
+
+```{r}
+grouplist = c("C16001")
+yearlist <- c(2021)
+for (agroup in grouplist) {
+  for (ayear in yearlist) {
+    agroupname = paste("group(",agroup,")",sep="")
+    acs_group <- getCensus(name = "acs/acs5",
+                           vintage = ayear,
+                           vars = c("NAME", agroupname),
+                           region = "place:*", # tracts
+                           regionin="state:17", # places, counties, not msas
+                           key=key_get("census_api_key"))
+    attach(acs_group)
+    acs_group <- acs_group %>% select(-contains("EA"),
+                                      -contains("MA"),
+                                      -contains("GEO_ID"),
+                                      -contains("M_1"),
+                                      -contains("M")) %>%
+      mutate(year = ayear,
+             fips = paste0(state,place))
+    assign(paste(agroup,"place",ayear,sep="_"),acs_group)
+    rm(acs_group)
+    detach(acs_group)
+  }
+}
+```
+
+# connect to inter-census and inter-spatial SQL Server databases
+```{r}
+con_inter_census <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-census")
+
+con_inter_spatial <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-spatial")
+
+```
+
+# join data with SCC munis
+
+```{r}
+
+scc_munis <- dbReadTable(conn = con_inter_census,
+            Id(schema = "ref", 
+               table = "decennial-2020-total-by-muni"))
+
+C16001_place_2021_scc <- C16001_place_2021 %>%
+  right_join(scc_munis, by = c("fips" = "geoid_place")) %>%
+  rename(
+    'total_pop_5plus' = C16001_001E,
+    'english_only' = C16001_002E,
+    'spanish' = C16001_003E,
+    'spanish_english_vw' = C16001_004E,
+    'spanish_english_lvw' = C16001_005E,
+    'french' = C16001_006E,
+    'french_english_vw' = C16001_007E,
+    'french_english_lvw' = C16001_008E,
+    'german' = C16001_009E,
+    'german_english_vw' = C16001_010E,
+    'german_english_lvw' = C16001_011E,
+    'slavic' = C16001_012E,
+    'slavic_english_vw' = C16001_013E,
+    'slavic_english_lvw' = C16001_014E,
+    'other_indo_eur' = C16001_015E,
+    'other_indo_eur_english_vw' = C16001_016E,
+    'other_indo_eur_english_lvw' = C16001_017E,
+    'korean' = C16001_018E,
+    'korean_english_vw' = C16001_019E,
+    'korean_english_lvw' = C16001_020E,
+    'chinese' = C16001_021E,
+    'chinese_english_vw' = C16001_022E,
+    'chinese_english_lvw' = C16001_023E,
+    'vietnamese' = C16001_024E,
+    'vietnamese_english_vw' = C16001_025E,
+    'vietnamese_english_lvw' = C16001_026E,
+    'tagalog' = C16001_027E,
+    'tagalog_english_vw' = C16001_028E,
+    'tagalog_english_lvw' = C16001_029E,
+    'other_asian' = C16001_030E,
+    'other_asian_english_vw' = C16001_031E,
+    'other_asian_english_lvw' = C16001_032E,
+    'arabic' = C16001_033E,
+    'arabic_english_vw' = C16001_034E,
+    'arabic_english_lvw' = C16001_035E,
+    'other' = C16001_036E,
+    'other_english_vw' = C16001_037E,
+    'other_english_lvw' = C16001_038E
+  ) %>%
+  mutate(
+    spanish_english_vw_pct = spanish_english_vw / spanish * 100,
+    spanish_english_lvw_pct = spanish_english_lvw / spanish * 100,
+    french_english_vw_pct = french_english_vw / french * 100,
+    french_english_lvw_pct = french_english_lvw / french * 100,
+    german_english_vw_pct = german_english_vw / german * 100,
+    german_english_lvw_pct = german_english_lvw / german * 100,
+    slavic_english_vw_pct = slavic_english_vw / slavic * 100,
+    slavic_english_lvw_pct = slavic_english_lvw / slavic * 100,
+    other_indo_eur_english_vw_pct = other_indo_eur_english_vw / other_indo_eur *
+      100,
+    other_indo_eur_english_lvw_pct = other_indo_eur_english_lvw / other_indo_eur *
+      100,
+    korean_english_vw_pct = korean_english_vw / korean * 100,
+    korean_english_lvw_pct = korean_english_lvw / korean * 100,
+    chinese_english_vw_pct = chinese_english_vw / chinese * 100,
+    chinese_english_lvw_pct = chinese_english_lvw / chinese * 100,
+    vietnamese_english_vw_pct = vietnamese_english_vw / vietnamese * 100,
+    vietnamese_english_lvw_pct = vietnamese_english_lvw / vietnamese * 100,
+    tagalog_english_vw_pct = tagalog_english_vw / tagalog * 100,
+    tagalog_english_lvw_pct = tagalog_english_lvw / tagalog * 100,
+    other_asian_english_vw_pct = other_asian_english_vw / other_asian * 100,
+    other_asian_english_lvw_pct = other_asian_english_lvw / other_asian * 100,
+    arabic_english_vw_pct = arabic_english_vw / arabic * 100,
+    arabic_english_lvw_pct = arabic_english_lvw / arabic * 100,
+    other_english_vw_pct = other_english_vw / other * 100,
+    other_english_lvw_pct = other_english_lvw / other * 100
+  ) %>%
+  mutate_at(
+    vars(
+      english_only,
+      spanish,
+      french,
+      german,
+      slavic,
+      korean,
+      chinese,
+      tagalog,
+      arabic,
+      other
+    ),
+    list(pct = ~. / total_pop_5plus * 100)
+  ) %>%
+  replace(is.na(.), 0)
+```
+

@@ -58,3 +58,148 @@ dbWriteTable(conn = con_inter_census,
 
 ```
 
+# SEER standard populations
+```{r}
+`seer-standard-2000-us-population-5-year` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/seer-standard-2000-us-population-5yr.csv")
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="seer-standard-2000-us-population-5yr"), 
+               overwrite= TRUE,
+               `seer-standard-2000-us-population-5-year`)
+
+
+`seer-standard-2000-us-population-single-year` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/seer-standard-2000-us-population-single-year.csv")
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="seer-standard-2000-us-population-single-year"), 
+               overwrite= TRUE,
+               `seer-standard-2000-us-population-single-year`)
+```
+
+
+# 2020 age by sex by zcta
+```{r}
+`decennial-2020-age-sex-by-zcta` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-age-sex-by-zcta.csv") %>%
+  rename(name_age = age,
+         pop_total = total_pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-age-sex-by-zcta"), 
+               overwrite= TRUE,
+               `decennial-2020-age-sex-by-zcta`)
+
+
+`decennial-2020-jurisdiction-totals-addition` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-jurisdiction-totals-addition.csv") %>%
+  rename(category = demographic,
+         pop_ccdph = ccdph_pop,
+         pop_scc = scc_pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-jurisdiction-totals-addition"), 
+               overwrite= TRUE,
+               `decennial-2020-jurisdiction-totals-addition`)
+
+`decennial-2020-jurisdiction-totals-subtraction` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-jurisdiction-totals-subtraction.csv") %>%
+  rename(category = demographic,
+         pop_ccdph = ccdph_pop,
+         pop_scc = scc_pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-jurisdiction-totals-subtraction"), 
+               overwrite= TRUE,
+               `decennial-2020-jurisdiction-totals-subtraction`)
+
+`decennial-2020-race-ethnicity-by-zcta` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-race-ethnicity-by-zcta.csv") %>%
+  rename(race = race_eth,
+         pop_total = total_pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-race-ethnicity-by-zcta"), 
+               overwrite= TRUE,
+               `decennial-2020-race-ethnicity-by-zcta`)
+
+`decennial-2020-single-year-age-sex-by-zcta` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-single-year-age-sex-by-zcta.csv") %>%
+  rename(name_age = age,
+         pop_total = total_pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-single-year-age-sex-by-zcta"), 
+               overwrite= TRUE,
+               `decennial-2020-single-year-age-sex-by-zcta`)
+
+
+
+`decennial-2020-total-zcta` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-total-zcta.csv") %>%
+  rename(pop_total = total_pop,
+         pct_in_cook = percent_pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-total-zcta"), 
+               overwrite= TRUE,
+               `decennial-2020-total-zcta`)
+
+
+
+`decennial-2020-us-state-totals` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2020/decennial-2020-us-state-totals.csv") %>%
+  rename(abbv_state = state,
+         name_state = state_name,
+         pop_total = pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-us-state-totals"), 
+               overwrite= TRUE,
+               `decennial-2020-us-state-totals`)
+
+```
+
+# write 2010 decennial data tables to database
+```{r}
+
+# partial populations?
+# zcta by single year age, sex, race
+
+`decennial-2010-age-sex-single-age-race-zcta` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2010/decennial-2010-age-sex-single-age-race-zcta.csv") %>%
+  rename(variable = var,
+         geoid_zcta = zcta,
+         name_age_1yr = age,
+         race = concept,
+         pop_total = pop)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2010-age-sex-single-age-race-zcta"),
+               overwrite= TRUE,
+               `decennial-2010-single-year-sex-age-race-zcta`)
+
+
+# muni by detailed age, sex
+`decennial-2010-age-sex-by-muni` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2010/decennial-2010-age-sex-by-muni.csv") %>%
+  select(name_place = clean_name,
+         geoid_place = census_place_code,
+         variable,
+         sex,
+         name_age_detailed = age,
+         pop_in_cook = estimate)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2010-age-sex-by-muni"),
+               overwrite= TRUE,
+               `decennial-2010-age-sex-by-muni`)
+
+# muni by race, ethnicity
+`decennial-2010-race-ethnicity-by-muni` <- read_csv("https://raw.githubusercontent.com/Cook-County-Department-of-Public-Health/ccdph-data-sets/main/2010/decennial-2010-race-ethnicity-by-muni.csv") %>%
+  mutate(race = str_replace(paste0(ethnicity, ", ",race)," alone", "")) %>%
+  select(name_place = clean_name,
+         geoid_place = census_place_code,
+         variable,
+         race,
+         pop_in_cook = estimate)
+
+dbWriteTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2010-race-by-muni"),
+               overwrite= TRUE,
+               `decennial-2010-race-ethnicity-by-muni`)
+
+
+
+```
+

@@ -1,0 +1,80 @@
+```{r}
+library(DBI)
+library(odbc)
+library(dplyr)
+library(dbplyr)
+library(tidyverse)
+library(stringr)
+library(keyring) # use to set/get "ccdph_sql_server" service name to connect to database 
+library(data.table)
+library(DT)
+library(survey) # for calculating standard errors
+library(haven) # for importing sas file
+library(ggplot2)
+library(psych)
+
+options(scipen = 999) # turn off scientific notation
+```
+
+```{r}
+
+# connect to database
+con_epi_cchs <- dbConnect(
+  odbc::odbc(),
+  Driver   = "SQL Server",
+  Server   = key_get("ccdph_sql_server"),
+  Database = "epi-cchs"
+)
+
+# connect to database
+con_inter_census <- dbConnect(
+  odbc::odbc(),
+  Driver   = "SQL Server",
+  Server   = key_get("ccdph_sql_server"),
+  Database = "inter-census"
+)
+
+# read municipal allocations table from database
+cchs_2022_muni_allocations <-
+  dbReadTable(conn = con_epi_cchs,
+              Id(schema = "ref", table = "cchs_2022_muni_allocations"))
+
+# read decennial table from inter-census database
+muni_pop_2020 <-
+  dbReadTable(conn = con_inter_census,
+              Id(schema = "ref", table = "decennial-2020-single-year-age-sex-race-ethnicity-by-muni"))
+
+muni_pop_2020_sub <- muni_pop_2020 %>%
+  filter(order_age_1yr >= 46,
+         sex == "Female") %>%
+  group_by(geoid_place) %>%
+  summarise(adult_45plus_pop_female = sum(pop_in_cook)) %>%
+  left_join(
+    cchs_2022_muni_allocations %>% select(geoid_place, number_stratum),
+    by = c("geoid_place")
+  ) %>% 
+  drop_na(number_stratum)  %>%
+  group_by(number_stratum, geoid_place) %>%
+  summarise(adult_45plus_pop_female = sum(adult_45plus_pop_female)) %>%
+  mutate(pct_muni_weight_female_45plus_total = adult_45plus_pop_female/sum(adult_45plus_pop_female)) %>%
+  left_join(cchs_2022_muni_allocations %>% select(-number_stratum), by="geoid_place") %>%
+  relocate(adult_45plus_pop_female, .after = adult_pop_female) %>%
+  relocate(pct_muni_weight_female_45plus_total, .after = pct_muni_weight_female_pop_total)
+
+# overwrite cchs_2022_muni_allocations table
+dbWriteTable(
+  conn = con_epi_cchs,
+  Id(schema = "ref", table = "cchs_2022_muni_allocations"),
+  overwrite = TRUE,
+  muni_pop_2020_sub
+)
+
+
+```
+
+```{r}
+# add females 45 and older table
+
+
+```
+
