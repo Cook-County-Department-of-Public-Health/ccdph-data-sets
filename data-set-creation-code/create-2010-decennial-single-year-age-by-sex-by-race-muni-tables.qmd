@@ -1,0 +1,323 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# activate required packages
+```{r}
+library(censusapi)
+library(DBI)
+library(odbc)
+library(tigris) 
+library(tidyverse)
+library(tidyr)
+library(dplyr) 
+library(sf)
+library(data.table)
+library(keyring)
+```
+
+# connect to inter-census and inter-spatial SQL Server databases, add reference tables
+```{r}
+con_inter_spatial <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-spatial")
+
+tracts_2010_cook_county <- dbReadTable(conn = con_inter_spatial,
+            Id(schema = "ref", table = "tracts_2010_cook_county")) %>%
+  select(geoid_tract_2010, name_district, location)
+
+con_inter_census <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-census")
+
+census_standard_age_groups <-  dbReadTable(conn = con_inter_census, 
+               Id(schema="ref", 
+                  table="standard-age-groups"))
+
+# read muni table from database
+places_cook_county <- dbReadTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-total-by-muni"))
+
+# create list subset of partial munis
+places_cook_county_partial_df <- as.list(places_cook_county %>% filter(partial=="TRUE" & pop_in_cook > 0) %>%  select(census_place_code))
+places_cook_county_partial <- places_cook_county_partial_df$census_place_code
+
+```
+
+# review 2010 decennial census APIs, groups and variables
+```{r}
+# return all census 2010 APIs
+allCensusApis_df <- listCensusApis() %>% filter(vintage=="2010")
+
+# return all groups in census 2020 demographic and housing counts
+groups_census_2010_sf1 <- listCensusMetadata(
+  name = "dec/sf1",
+  vintage = 2010,
+  type = "groups",
+  group = NULL,
+  variable_name = NULL,
+  include_values = FALSE
+)
+
+# select all PCT12 (age, sex, race) groups
+groups_age_sex_race <- groups_census_2010_sf1 %>%
+  select(name, description) %>%
+  filter(str_detect(name, "PCT12")) %>%
+  distinct() %>%
+  arrange(name)
+
+# return all variables in census 2020 demographic and housing counts
+variables_census_2010_sf1 <- listCensusMetadata(
+  name = "dec/sf1",
+  vintage = 2010,
+  type = "variables",
+  group = NULL,
+  variable_name = NULL,
+  include_values = FALSE
+)
+
+```
+
+# Download variables for partial places (municipalities partially inside Cook County)
+```{r}
+# select all PCT12 (age, sex) variables
+variables_age_sex_race <- variables_census_2010_sf1 %>%
+  select(name, label) %>%
+  filter(str_detect(name, "PCT012")) %>%
+  distinct() %>%
+  arrange(name)
+
+variables_age_groups <- variables_age_sex_race %>%
+  filter(str_detect(name, "PCT012A")) %>%
+  mutate(col_number = as.integer(substr(name,8,10)),
+         label = str_replace_all(label, " !!Total!!Male",""),
+         label = str_replace_all(label, "Total!!Male!!",""),
+         label = str_replace_all(label, "Total!!Female!!",""),
+         label = str_replace_all(label, "!!","")) %>%
+  select(-name, name_age_1yr = label)
+
+variables_age_groups_mod <- variables_age_groups %>% 
+  left_join(census_standard_age_groups, by="name_age_1yr") %>% drop_na(order_age_1yr)
+
+# groups used for data tables
+# name	description
+# PCT12A	SEX BY SINGLE-YEAR AGE (WHITE ALONE)
+# PCT12B	SEX BY SINGLE-YEAR AGE (BLACK OR AFRICAN AMERICAN ALONE)
+# PCT12C	SEX BY SINGLE-YEAR AGE (AMERICAN INDIAN AND ALASKA NATIVE ALONE)
+# PCT12D	SEX BY SINGLE-YEAR AGE (ASIAN ALONE)
+# PCT12E	SEX BY SINGLE-YEAR AGE (NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE)
+# PCT12F	SEX BY SINGLE-YEAR AGE (SOME OTHER RACE ALONE)
+# PCT12G	SEX BY SINGLE-YEAR AGE (TWO OR MORE RACES)
+# PCT12H	SEX BY SINGLE-YEAR AGE (HISPANIC OR LATINO)
+# PCT12I	SEX BY SINGLE-YEAR AGE (WHITE ALONE, NOT HISPANIC OR LATINO)
+# PCT12J	SEX BY SINGLE-YEAR AGE (BLACK OR AFRICAN AMERICAN ALONE, NOT HISPANIC OR LATINO)
+# PCT12K	SEX BY SINGLE-YEAR AGE (AMERICAN INDIAN AND ALASKA NATIVE ALONE, NOT HISPANIC OR LATINO)
+# PCT12L	SEX BY SINGLE-YEAR AGE (ASIAN ALONE, NOT HISPANIC OR LATINO)
+# PCT12M	SEX BY SINGLE-YEAR AGE (NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE, NOT HISPANIC OR LATINO)
+# PCT12N	SEX BY SINGLE-YEAR AGE (SOME OTHER RACE ALONE, NOT HISPANIC OR LATINO)
+# PCT12O	SEX BY SINGLE-YEAR AGE (TWO OR MORE RACES, NOT HISPANIC OR LATINO)
+
+# Download variables by census tract
+grouplist <- c("PCT12H", "PCT12I", "PCT12J", "PCT12K", "PCT12L","PCT12M","PCT12N","PCT12O")
+
+groupname <- c("Hispanic", "NH White", "NH Black", "NH AIAN", "NH Asian","NH NHPI","NH Other","NH Multiracial")
+
+#groupname <- c("Hispanic", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Native American or Alaskan Native", "Non-Hispanic Asian","Non-Hispanic Native Hawaiian or Other Pacific Islander","Non-Hispanic Other","Non-Hispanic Two or More Races")
+
+yearlist <- c(2010)
+for (agroup in grouplist) {
+  for (ayear in yearlist) 
+    for (aplace_partial in  places_cook_county_partial){
+    agroupname = paste("group(",agroup,")",sep="")
+    agroup_mod <- str_replace(agroup,"PCT","PCT0")
+    aregionin = paste0("state:17+place:",aplace_partial)
+    print(agroupname)
+    print(aregionin)
+    census_group <- getCensus(name = "dec/sf1",
+                           vintage = ayear,
+                           vars = c(agroupname),
+                           region = "county (or part):031", # tracts
+                           regionin=aregionin,
+                           key=key_get("census_api_key"))
+    census_group <- census_group %>% 
+      select(-ends_with("NA")) %>%
+      mutate(census_group = agroup,
+             vintage = ayear,
+             source = "https://api.census.gov/data/2010/dec/sf1") %>%
+      rename_with(~str_replace(.,agroup_mod,"age_"))
+    assign(paste(agroup,"place_partial",aplace_partial, ayear,sep="_"),census_group)
+  }
+}
+
+# bind partial muni tables
+apattern <- paste("_place_partial_")
+alist_pattern <- mget(ls(pattern = apattern))
+munis_partial_single_age_sex_race_2010 <- bind_rows(alist_pattern)  %>%
+  mutate(geoid_place = paste0(state,place)) %>%
+  select(-c(county_or_part))
+
+# remove partial muni tables from environment
+rm(list=ls(pattern="_place_partial"))
+```
+
+# Download variables for total places (municipalities wholly inside Cook County)
+
+```{r}
+
+yearlist <- c(2010)
+for (agroup in grouplist) {
+  for (ayear in yearlist) {
+    agroupname = paste("group(",agroup,")",sep="")
+    agroup_mod <- str_replace(agroup,"PCT","PCT0")
+    census_group <- getCensus(name = "dec/sf1",
+                           vintage = ayear,
+                           vars = c(agroupname),
+                           region = "place:*", 
+                           regionin="state:17",
+                           key=key_get("census_api_key"))
+    census_group <- census_group %>% 
+      select(-ends_with("NA")) %>%
+      mutate(census_group = agroup,
+             vintage = ayear,
+             source = "https://api.census.gov/data/2010/dec/sf1") %>%
+      rename_with(~str_replace(.,agroup_mod,"age_"))
+    assign(paste(agroup,"places_all", ayear,sep="_"),census_group)
+  }
+}
+
+# bind total other muni tables
+apattern <- paste("_places_all_")
+alist_pattern <- mget(ls(pattern = apattern))
+
+# create comprehensive place table with total populations
+munis_total_single_age_sex_race_2010 <- bind_rows(alist_pattern) %>%
+  mutate(geoid_place = paste0(state,place)) %>%  
+  right_join(places_cook_county %>% select(geoid_place), by="geoid_place") 
+
+# create comprehensive place table with total populations 
+# and partial places removed
+munis_nopartial_single_age_sex_race_2010 <- munis_total_single_age_sex_race_2010 %>% 
+  anti_join(munis_partial_single_age_sex_race_2010, by="geoid_place")
+
+# remove total muni tables from environment
+rm(list=ls(pattern="_places_all_"))
+```
+
+# Bind partial and total municipal population tables
+```{r}
+# bind partial and non-partial muni tables
+munis_withpartial_single_age_sex_race_2010 <- munis_nopartial_single_age_sex_race_2010 %>% bind_rows(munis_partial_single_age_sex_race_2010)
+
+group_list <- as.data.frame(grouplist) %>% rename(census_group = 1)
+group_category <- as.data.frame(groupname) %>% rename(race = 1)
+group_categories <- bind_cols(group_list, group_category)
+
+# reformat partial and non-partial muni table
+munis_withpartial_single_age_sex_race_2010_attr <- munis_withpartial_single_age_sex_race_2010 %>%
+  left_join(group_categories, by = "census_group") %>%
+  pivot_longer(cols=c(age_001:age_209), names_to = "age_sex", values_to = "population") %>%
+  mutate(col_number = as.integer(substr(age_sex,5,7)),
+         sex = case_when(col_number == 1 ~ "Total",
+                   col_number > 2 & col_number <=105 ~ "Male",
+                   col_number > 106 & col_number <=209 ~ "Female")) %>%
+  filter(col_number >= 3, col_number != 106) %>%
+  left_join(places_cook_county %>% select(name_place, geoid_place, census_place_code, name_district, location, partial, exclude_from_analysis), by="geoid_place") %>%
+  left_join(variables_age_groups_mod, by="col_number") %>%
+  select(name_place, 
+         geoid_place, 
+         census_place_code,
+         name_age_1yr:order_age_10yr,
+         sex,
+         race,
+         pop_in_cook = population,
+         name_district:exclude_from_analysis,
+         vintage, 
+         source) %>%
+  arrange(name_place,
+          sex,
+          race,
+          order_age_1yr)
+
+# reformat total population muni table
+munis_total_single_age_sex_race_2010_attr <- munis_total_single_age_sex_race_2010 %>%
+  left_join(group_categories, by = "census_group") %>%
+  pivot_longer(cols=c(age_001:age_209), names_to = "age_sex", values_to = "population") %>%
+  mutate(col_number = as.integer(substr(age_sex,5,7)),
+         sex = case_when(col_number == 1 ~ "Total",
+                   col_number > 2 & col_number <=105 ~ "Male",
+                   col_number > 106 & col_number <=209 ~ "Female")) %>%
+  filter(col_number >= 3, col_number != 106) %>%
+  left_join(places_cook_county %>% select(name_place, geoid_place, census_place_code, name_district, location, partial, exclude_from_analysis), by="geoid_place") %>%
+  left_join(variables_age_groups_mod, by="col_number") %>%
+  select(name_place, 
+         geoid_place, 
+         census_place_code,
+         name_age_1yr:order_age_10yr,
+         sex,
+         race,
+         population,
+         name_district:exclude_from_analysis,
+         vintage, 
+         source) %>%
+  arrange(name_place,
+          sex,
+          race,
+          order_age_1yr)
+
+# add total population column to with partial table
+munis_comp_single_age_sex_race_2010_attr <- munis_withpartial_single_age_sex_race_2010_attr %>%
+  left_join(munis_total_single_age_sex_race_2010_attr %>% select(geoid_place,name_age_1yr,sex,race,pop_total = population), by=c("geoid_place", "name_age_1yr", "sex","race")) %>%
+  select(name_place:race,pop_in_cook,pop_total,name_district:source)
+
+```
+
+# write table inter-census SQL Server database
+```{r}
+
+con_inter_census <- dbConnect(odbc::odbc(),
+                               Driver   = "SQL Server",
+                               Server   = key_get("ccdph_sql_server"),
+                               Database = "inter-census")
+
+# drop existing and create new "deaths_scc_2010_2022" table in database
+dbExecute(con_inter_census,
+          statement = "DROP TABLE [ref].[decennial-2010-single-year-age-sex-race-by-muni]")
+
+# create new, empty table
+dbCreateTable(con_inter_census,
+     Id(schema = "ref", table = "decennial-2010-single-year-age-sex-race-by-muni"),
+     fields = munis_comp_single_age_sex_race_2010_attr)
+
+# write data to database
+for (a_order_age_5yr in 1:18){
+  
+  # create year-specific table
+  atable <- munis_comp_single_age_sex_race_2010_attr %>% filter(order_age_5yr == a_order_age_5yr)
+  
+  # connect to inter-census database
+  con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census",
+                        timeout = 480)
+  
+  # print year
+  print(a_order_age_5yr)
+  
+  # append year-specific table to comprehensive 2010 table
+  dbAppendTable(conn = con_inter_census, 
+               name = Id(schema = "ref", table = "decennial-2010-single-year-age-sex-race-by-muni"), 
+               value = atable)
+  
+  # disconnect from database
+  dbDisconnect(con_inter_census)
+  
+}
+
+
+```
+
