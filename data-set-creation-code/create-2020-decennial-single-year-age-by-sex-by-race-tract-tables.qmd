@@ -36,7 +36,7 @@ con_inter_census <- dbConnect(odbc::odbc(),
 
 census_standard_age_groups <-  dbReadTable(conn = con_inter_census, 
                Id(schema="ref", 
-                  table="census-standard-age-groups"))
+                  table="standard-age-groups"))
 
 ```
 
@@ -116,9 +116,10 @@ variables_age_groups_mod <- variables_age_groups %>%
 # Download variables by census tract
 grouplist <- c("PCT12H", "PCT12I", "PCT12J", "PCT12K", "PCT12L","PCT12M","PCT12N","PCT12O")
 
-# groupname <- c("Hispanic", "NH White", "NH Black", "NH AIAN", "NH Asian","NH NHPI","NH Other","NH Multiracial")
+groupname <- c("Hispanic", "NH White", "NH Black", "NH AIAN", "NH Asian","NH NHPI","NH Other","NH Multiracial")
 
-groupname <- c("hispanic/latino", "non-hispanic white", "non-hispanic black", "non-hispanic american indian and alaska native", "non-hispanic asian","non-hispanic native hawaiian and other pacific islander","non-hispanic some other","non-hispanic multiracial")
+#groupname <- c("Hispanic", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Native American or Alaskan Native", "Non-Hispanic Asian","Non-Hispanic Native Hawaiian or Other Pacific Islander","Non-Hispanic Other","Non-Hispanic Two or More Races")
+
 yearlist <- c(2020)
 for (agroup in grouplist) {
   for (ayear in yearlist) {
