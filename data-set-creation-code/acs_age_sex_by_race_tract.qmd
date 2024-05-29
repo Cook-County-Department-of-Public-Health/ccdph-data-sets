@@ -1,0 +1,120 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+# activate packages
+```{r}
+library(censusapi)
+library(tigris) 
+library(tidyverse)
+library(tidyr)
+library(dplyr) 
+library(sf) 
+library(clipr)
+library(readxl)
+library(leaflet)
+library(scales)
+library(ggmap)
+library(data.table)
+library(XML)
+library(reshape2)
+library(ggplot2)
+library(keyring)
+```
+
+# review acs census APIs, groups and variables
+```{r}
+# return all census acs APIs
+allCensusApis_df <- listCensusApis() # %>% filter(name=="acs/acs5")
+
+# return all groups in census 2022 demographic and housing counts
+groups_census_acs5_2022 <- listCensusMetadata(
+  name = "acs/acs5",
+  vintage = 2022,
+  type = "groups",
+  group = NULL,
+  variable_name = NULL,
+  include_values = FALSE
+)
+
+# select all PCT12 (age, sex, race) groups
+groups_age_sex_race <- groups_census_2010_sf1 %>%
+  select(name, description) %>%
+  filter(str_detect(name, "PCT12")) %>%
+  distinct() %>%
+  arrange(name)
+
+# return all variables in census 2020 demographic and housing counts
+variables_census_2022_acs5 <- listCensusMetadata(
+  name = "acs/acs5",
+  vintage = 2022,
+  type = "variables",
+  group = NULL,
+  variable_name = NULL,
+  include_values = FALSE
+)
+
+test <- variables_census_2022_acs5 %>% 
+  filter(str_detect(name, "B01001A"))
+
+# select all (age, sex) variables
+variables_age_sex_race <- variables_census_2022_acs5 %>%
+  select(name, label) %>%
+  filter(str_detect(name, "B01001")) %>%
+  distinct() %>%
+  arrange(name)
+
+variables_age_groups <- variables_age_sex_race %>%
+  filter(str_detect(name, "B01001_")) %>%
+  mutate(col_number = as.integer(substr(name,8,10)),
+         label = str_replace_all(label, "Estimate!!Total:","Total"),
+         label = str_replace_all(label, "Total!!Male:!!",""),
+         label = str_replace_all(label, "Total!!Female:!!",""),
+         label = str_replace_all(label, "!!",""),
+         label = str_replace_all(label, "TotalMale:","Male"),
+         label = str_replace_all(label, "TotalFemale:","Female"),
+         ) %>%
+  select(-name, name_age_1yr = label)
+
+```
+
+
+```{r}
+
+grouplist <- c("B01001A", "B01001B", "B01001C", "B01001D", "B01001E","B01001F","B01001G","B01001H", "B01001I")
+groupname <- c("White",  "Black", "AIAN", "Asian","NHPI","Other","Multiracial","NH White", "Hispanic")
+yearlist <- c(2010:2022)
+
+for (agroup in grouplist) {
+  for (ayear in yearlist) {
+    agroupname = paste("group(",agroup,")",sep="")
+    acs_group <- getCensus(name = "acs/acs5",
+                           vintage = ayear,
+                           vars = c("NAME", agroupname),
+                           region = "tract:*", # tracts
+                           regionin="state:17", # places, counties, not msas
+                           key=key_get("census_api_key"))
+    attach(acs_group)
+    acs_group <- acs_group %>% select(-contains("EA"))
+    acs_group <- acs_group %>% select(-contains("MA"))
+    acs_group <- acs_group %>% select(-contains("GEO_ID"))
+    acs_group <- acs_group %>% select(-contains("M_1"))
+    acs_group <- acs_group %>% select(-contains("M"))
+    acs_group$stratification<-agroup
+    acs_group$year<-ayear 
+    acs_group$GEOID_tract<-paste0(state,county,tract)
+    assign(paste(agroup,"tract",ayear,sep="_"),acs_group)
+    rm(acs_group)
+    detach(acs_group)
+  }
+}
+
+# bind rows in tables
+apattern_tract <- paste("B01001")
+alist_tract <- mget(ls(pattern = apattern_tract))
+acs_tract_age_race_2010_2022 <- bind_rows(alist_tract)
+rm(list=ls(pattern=apattern_tract))
+
+```
+

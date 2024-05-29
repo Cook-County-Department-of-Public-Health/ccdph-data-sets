@@ -83,14 +83,14 @@ variables_age_groups <- variables_age_sex_race %>%
 variables_age_groups_mod <- variables_age_groups %>% 
   left_join(census_standard_age_groups, by="name_age_1yr")
 
-# read muni table from database
-places_cook_county <- dbReadTable(conn = con_inter_census, 
-               Id(schema="ref", table="decennial-2020-total-by-muni"))
+# read zcta table from database
+zctas_cook_county <- dbReadTable(conn = con_inter_census, 
+               Id(schema="ref", table="decennial-2020-total-by-zcta"))
 
 # create list subset of partial munis
-places_cook_county_partial_df <- as.list(places_cook_county %>% filter(partial=="TRUE" & pop_in_cook > 0) %>%  select(census_place_code))
+zctas_cook_county_partial_df <- as.list(zctas_cook_county %>% filter(partial==1 & pop_in_cook > 0) %>%  select(geoid_zcta))
 
-places_cook_county_partial <- places_cook_county_partial_df$census_place_code
+zctas_cook_county_partial <- zctas_cook_county_partial_df$geoid_zcta
 
 # groups used for data tables
 # name	description
@@ -119,15 +119,16 @@ groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "N
 ayear = 2020
 
 for (agroup in grouplist) {
-  for (aplace_partial in  places_cook_county_partial){
+  for (azcta_partial in  zctas_cook_county_partial){
       agroupname = paste("group(",agroup,")",sep="")
-      aregionin = paste0("state:17+place:",aplace_partial)
+      aregion = paste0("zip code tabulation area (or part):", as.character(azcta_partial))
+      aregionin = paste0("state:17")
       print(agroupname)
       print(aregionin)
       census_group <- getCensus(name = "dec/dhc",
                              vintage = ayear,
                              vars = c(agroupname),
-                             region = "county (or part):031", # tracts
+                             region = aregion, # zctas
                              regionin=aregionin,
                              key=key_get("census_api_key"))
       census_group <- census_group %>% 
@@ -136,7 +137,7 @@ for (agroup in grouplist) {
                vintage = ayear,
                source = "https://api.census.gov/data/2020/dec/dhc") %>%
         rename_with(~str_replace(.,agroup,"age"))
-      assign(paste(agroup,"place_partial",aplace_partial, ayear,sep="_"),census_group)
+      assign(paste(agroup,"zcta_partial",azcta_partial, ayear,sep="_"),census_group)
     }
   }
 

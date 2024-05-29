@@ -36,7 +36,7 @@ con_inter_census <- dbConnect(odbc::odbc(),
 
 census_standard_age_groups <-  dbReadTable(conn = con_inter_census, 
                Id(schema="ref", 
-                  table="census-standard-age-groups"))
+                  table="standard-age-groups"))
 
 ```
 
@@ -74,7 +74,7 @@ variables_census_2020_dhc <- listCensusMetadata(
 
 ```
 
-# create 2020 decennial tracts by single-year age, sex for Cook County
+# create 2020 decennial zctas by single-year age, sex, by race for Cook County
 ```{r}
 # select all PCT12 (age, sex) variables
 variables_age_sex_race <- variables_census_2020_dhc %>%
@@ -123,11 +123,12 @@ yearlist <- c(2020)
 for (agroup in grouplist) {
   for (ayear in yearlist) {
     agroupname = paste("group(",agroup,")",sep="")
+    aregionin = paste0("state:17+county (or part):031")
     census_group <- getCensus(name = "dec/dhc",
                            vintage = ayear,
                            vars = c(agroupname),
-                           region = "tract:*", # tracts
-                           regionin="state:17+county:031", # places, counties, not msas
+                           region = "zip code tabulaton area:*", # zctas
+                           regionin="state:17+county (or part):031", # places, counties, not msas
                            key=key_get("census_api_key"))
     census_group <- census_group %>% 
       select(-ends_with("NA")) %>%
@@ -135,7 +136,7 @@ for (agroup in grouplist) {
              vintage = ayear,
              source = "https://api.census.gov/data/2020/dec/dhc") %>%
       rename_with(~str_replace(.,agroup,"age"))
-    assign(paste(agroup,"tract",ayear,sep="_"),census_group)
+    assign(paste(agroup,"zcta",ayear,sep="_"),census_group)
   }
 }
 
