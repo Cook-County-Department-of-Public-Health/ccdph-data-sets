@@ -710,7 +710,16 @@ rm(pop_2010_scc_sex_10yr,
 Bind the total population, race, sex and municipality by year tables and write to SQL Server inter-census database.
 
 ```{r}
-# bind tables
+
+# standard_age_groups_seer_pop_ccdph_10yr_annualized
+# standard_age_groups_seer_pop_sex_ccdph_10yr_annualized
+# standard_age_groups_seer_pop_race_ccdph_10yr_annualized
+# standard_age_groups_seer_pop_scc_10yr_annualized
+# standard_age_groups_seer_pop_sex_scc_10yr_annualized
+# standard_age_groups_seer_pop_race_scc_10yr_annualized
+# standard_age_groups_seer_pop_muni_10yr_annualized
+
+# ccdph tables
 standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_pop_ccdph_10yr_annualized %>%
   mutate(stratification = "total") %>% 
   bind_rows(
@@ -723,21 +732,23 @@ standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_p
     ) %>% 
   mutate(geoid = "ccdph")
 
-standard_age_groups_seer_10yr_annualized_all <- standard_age_groups_seer_pop_10yr_annualized %>%
+# scc tables
+standard_age_groups_seer_scc_10yr_annualized_all <- standard_age_groups_seer_pop_scc_10yr_annualized %>%
   mutate(stratification = "total") %>% 
   bind_rows(
-    standard_age_groups_seer_pop_race_10yr_annualized %>%
+    standard_age_groups_seer_pop_race_scc_10yr_annualized %>%
       rename(stratification = race)
     ) %>%
   bind_rows(
-    standard_age_groups_seer_pop_sex_10yr_annualized %>%
+    standard_age_groups_seer_pop_sex_scc_10yr_annualized %>%
       rename(stratification = sex)
     ) %>% 
-  mutate(geoid = "scc") %>% 
-  bind_rows(standard_age_groups_seer_ccdph_10yr_annualized_all) %>% 
-  bind_rows(
-    standard_age_groups_seer_pop_muni_10yr_annualized) %>% 
-  select(-c(dif_2010_20))
+  mutate(geoid = "scc")
+
+# muni table
+standard_age_groups_seer_10yr_annualized_all <- standard_age_groups_seer_ccdph_10yr_annualized_all %>% 
+  bind_rows(standard_age_groups_seer_scc_10yr_annualized_all) %>% 
+  bind_rows(standard_age_groups_seer_pop_muni_10yr_annualized)
 
 # connect inter-census database
 con_inter_census <- dbConnect(odbc::odbc(),
