@@ -261,10 +261,98 @@ standard_age_groups_seer_pop_ccdph_10yr_annualized <- standard_age_groups_seer_p
 # remove unneeded tables
 rm(pop_2010_ccdph_total_10yr, 
    pop_2020_ccdph_total_10yr,
+   standard_age_groups_seer_pop_ccdph,
    standard_age_groups_seer_pop_ccdph_10yr)
 
 ```
 
+### Municipality
+```{r}
+
+# connect to inter-census
+con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census")
+
+# import 2010 muni total population data by year
+pop_2010_scc_muni_10yr <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "decennial-2010-single-year-age-sex-race-ethnicity-by-muni")) %>%
+  filter(location != "Chicago") %>% 
+  select(order_age_10yr,
+         name_age_10yr,
+         geoid_place,
+         name_place,
+         population = pop_in_cook) %>% 
+  group_by(geoid_place,
+           order_age_10yr, 
+           name_age_10yr) %>% 
+  summarize(pop_2010 = sum(population)) %>% 
+  arrange(order_age_10yr) %>% 
+  collect() %>% 
+  as.data.frame() %>% 
+  mutate(pct_2010 = (pop_2010/sum(pop_2010)))
+
+# import 2020 muni total population data by year
+pop_2020_scc_muni_10yr <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "decennial-2020-single-year-age-sex-race-ethnicity-by-muni")) %>%
+  filter(location != "Chicago") %>% 
+  select(order_age_10yr,
+         name_age_10yr,
+         geoid_place,
+         name_place,
+         population = pop_in_cook) %>% 
+  group_by(geoid_place,
+           order_age_10yr, 
+           name_age_10yr) %>% 
+  summarize(pop_2020 = sum(population)) %>% 
+  arrange(order_age_10yr) %>% 
+  collect() %>% 
+  as.data.frame() %>% 
+  mutate(pct_2020 = (pop_2020/sum(pop_2020)))
+
+# join muni tables
+pop_2010_2020_scc_muni_10yr <- pop_2010_scc_muni_10yr %>% 
+  left_join(pop_2020_scc_muni_10yr %>% select(-name_age_10yr), by=c("geoid_place","order_age_10yr"))
+
+# Create 10-year standard age group population table (2010, 2020 populations) by muni
+pop_2010_2020_scc_muni_10yr_dif_2010_20 <- pop_2010_2020_scc_muni_10yr %>% 
+  mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
+
+# Create 10-year standard age group population table (2010-2020 populations)
+atable <- pop_2010_2020_scc_muni_10yr_dif_2010_20
+
+for (ayear in 1:12){
+  anewyear = paste0("pop_",as.character(2010 + ayear))
+  atable <- atable %>% 
+    mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
+}
+
+assign(value = atable, x = "standard_age_groups_seer_pop_muni_10yr_annualized")
+standard_age_groups_seer_pop_muni_10yr_annualized <- standard_age_groups_seer_pop_muni_10yr_annualized %>%
+  relocate(pop_2010, .before = pop_2011) %>% 
+  relocate(pop_2020, .after = pop_2019) %>% 
+  pivot_longer(cols = pop_2010:pop_2022,
+               names_to = "pop_year",
+               values_to = "population") %>% 
+  mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_","")),
+         population = if_else(population < 0,0,population),
+         stratification = "total") %>% 
+  rename(geoid = geoid_place) %>% 
+  select(-c(pct_2010,pct_2020)) %>% 
+  left_join(standard_age_groups_seer %>% select(-name_age_10yr), by="order_age_10yr")
+  
+# remove unneeded tables
+rm(pop_2010_scc_muni_10yr, 
+   pop_2020_scc_muni_10yr,
+   pop_2010_2020_scc_muni_10yr,
+   pop_2010_2020_scc_muni_10yr_dif_2010_20)
+
+```
 ## Race, ethnicity with SEER rates
 ### SCC
 ```{r}
@@ -348,6 +436,7 @@ standard_age_groups_seer_pop_race_scc_10yr_annualized <- standard_age_groups_see
 # remove unneeded tables
 rm(pop_2010_scc_race_10yr, 
    pop_2020_scc_race_10yr,
+   standard_age_groups_seer_pop_race,
    standard_age_groups_seer_pop_race_10yr)
 
 ```
@@ -434,6 +523,7 @@ standard_age_groups_seer_pop_race_ccdph_10yr_annualized <- standard_age_groups_s
 # remove unneeded tables
 rm(pop_2010_ccdph_race_10yr, 
    pop_2020_ccdph_race_10yr,
+   standard_age_groups_seer_pop_race,
    standard_age_groups_seer_pop_race_10yr)
 
 ```
@@ -523,6 +613,7 @@ standard_age_groups_seer_pop_sex_scc_10yr_annualized <- standard_age_groups_seer
 # remove unneeded tables
 rm(pop_2010_scc_sex_10yr, 
    pop_2020_scc_sex_10yr,
+   standard_age_groups_seer_pop_sex,
    standard_age_groups_seer_pop_sex_10yr)
 
 
@@ -598,8 +689,8 @@ for (ayear in 1:12){
     mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
 }
 
-assign(value = atable, x = "standard_age_groups_seer_pop_sex_scc_10yr_annualized")
-standard_age_groups_seer_pop_sex_scc_10yr_annualized <- standard_age_groups_seer_pop_sex_scc_10yr_annualized %>% 
+assign(value = atable, x = "standard_age_groups_seer_pop_sex_ccdph_10yr_annualized")
+standard_age_groups_seer_pop_sex_ccdph_10yr_annualized <- standard_age_groups_seer_pop_sex_ccdph_10yr_annualized %>% 
   relocate(pop_2010, .before = pop_2011) %>% 
   relocate(pop_2020, .after = pop_2019) %>%
   pivot_longer(cols = pop_2010:pop_2022,
@@ -610,12 +701,64 @@ standard_age_groups_seer_pop_sex_scc_10yr_annualized <- standard_age_groups_seer
 # remove unneeded tables
 rm(pop_2010_scc_sex_10yr, 
    pop_2020_scc_sex_10yr,
+   standard_age_groups_seer_pop_sex,
    standard_age_groups_seer_pop_sex_10yr)
 
 ```
 
+## Bind and write annualized population tables to SQL Server
+Bind the total population, race, sex and municipality by year tables and write to SQL Server inter-census database.
+
+```{r}
+# bind tables
+standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_pop_ccdph_10yr_annualized %>%
+  mutate(stratification = "total") %>% 
+  bind_rows(
+    standard_age_groups_seer_pop_race_ccdph_10yr_annualized %>%
+      rename(stratification = race)
+    ) %>%
+  bind_rows(
+    standard_age_groups_seer_pop_sex_ccdph_10yr_annualized %>%
+      rename(stratification = sex)
+    ) %>% 
+  mutate(geoid = "ccdph")
+
+standard_age_groups_seer_10yr_annualized_all <- standard_age_groups_seer_pop_10yr_annualized %>%
+  mutate(stratification = "total") %>% 
+  bind_rows(
+    standard_age_groups_seer_pop_race_10yr_annualized %>%
+      rename(stratification = race)
+    ) %>%
+  bind_rows(
+    standard_age_groups_seer_pop_sex_10yr_annualized %>%
+      rename(stratification = sex)
+    ) %>% 
+  mutate(geoid = "scc") %>% 
+  bind_rows(standard_age_groups_seer_ccdph_10yr_annualized_all) %>% 
+  bind_rows(
+    standard_age_groups_seer_pop_muni_10yr_annualized) %>% 
+  select(-c(dif_2010_20))
+
+# connect inter-census database
+con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census")
+
+  
+# write annualized data to SQL Server
+dbWriteTable(con_inter_census,
+         Id(schema = "ref", table = "annualized-population-2010-2022-10yr-age-race-sex-scc-ccdph-muni"),
+         overwrite = TRUE,
+         value = standard_age_groups_seer_10yr_annualized_all,
+         encoding = "latin1",
+         fileEncoding="UTF-8")
+```
+
 ## Race, ethnicity, by sex
-### SCC
+### SCC by 10-year age groups
+Creation of *annualized-decennial-2010-2022-10yr-age-by-race-by-sex-scc* table in inter-census SQL Server database.
+
 ```{r}
 # connect to inter-census database
 con_inter_census <- dbConnect(odbc::odbc(),
@@ -714,142 +857,4 @@ rm(pop_2010_scc_race_sex_10yr,
    pop_scc_age_race_sex_10yr,
    atable)
 
-```
-
-## Muni total population with SEER rates
-Create total population by municipality by year table for suburban Cook County.
-
-```{r}
-con_inter_census <- dbConnect(odbc::odbc(),
-                        Driver   = "SQL Server",
-                        Server   = key_get("ccdph_sql_server"),
-                        Database = "inter-census")
-
-# import 2010 SCC total population data by year
-pop_2010_scc_muni_10yr <-
-  tbl(con_inter_census,
-      Id(schema = "ref",
-         table = "decennial-2010-single-year-age-sex-race-ethnicity-by-muni")) %>%
-  filter(location != "Chicago") %>% 
-  select(order_age_10yr,
-         name_age_10yr,
-         geoid_place,
-         name_place,
-         population = pop_in_cook) %>% 
-  group_by(order_age_10yr, 
-           name_age_10yr) %>% 
-  summarize(pop_2010 = sum(population)) %>% 
-  arrange(order_age_10yr) %>% 
-  collect() %>% 
-  as.data.frame() %>% 
-  mutate(pct_2010 = (pop_2010/sum(pop_2010)))
-
-# import 2020 SCC total population data by year
-pop_2020_scc_muni_10yr <-
-  tbl(con_inter_census,
-      Id(schema = "ref",
-         table = "decennial-2020-single-year-age-sex-race-ethnicity-by-muni")) %>%
-  filter(location != "Chicago") %>% 
-  select(order_age_10yr,
-         name_age_10yr,
-         geoid_place,
-         name_place,
-         population = pop_in_cook) %>% 
-  group_by(order_age_10yr, 
-           name_age_10yr) %>% 
-  summarize(pop_2020 = sum(population)) %>% 
-  arrange(order_age_10yr) %>% 
-  collect() %>% 
-  as.data.frame() %>% 
-  mutate(pct_2020 = (pop_2020/sum(pop_2020)))
-
-# Join SCC total population data with standard age groups
-standard_age_groups_seer_pop <- standard_age_groups_seer %>% 
-  left_join(pop_2010_scc_muni_10yr, by="order_age_10yr") %>% 
-   left_join(pop_2020_scc_muni_10yr, by="order_age_10yr")
-
-# Create 10-year standard age group population table (2010, 2020 populations)
-standard_age_groups_seer_pop_10yr <- standard_age_groups_seer_pop %>% 
-  group_by(order_age_10yr,
-           name_age_10yr) %>% 
-  summarise(pop_2010 = sum(pop_2010),
-            pop_2020 = sum(pop_2020),
-            pct_seer = sum(pct_seer)) %>%
-  mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
-
-# Create 10-year standard age group population table (2010-2020 populations)
-atable <- standard_age_groups_seer_pop_10yr
-
-for (ayear in 1:12){
-  anewyear = paste0("pop_",as.character(2010 + ayear))
-  atable <- atable %>% 
-    mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
-}
-
-assign(value = atable, x = "standard_age_groups_seer_pop_10yr_annualized")
-standard_age_groups_seer_pop_10yr_annualized <- standard_age_groups_seer_pop_10yr_annualized %>% 
-  relocate(pop_2010, .before = pop_2011) %>% 
-  relocate(pop_2020, .after = pop_2019) %>% 
-  pivot_longer(cols = pop_2010:pop_2022,
-               names_to = "pop_year",
-               values_to = "population") %>% 
-  mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_","")))
-
-# remove unneeded tables
-rm(pop_2010_scc_muni_10yr, 
-   pop_2020_scc_muni_10yr,
-   standard_age_groups_seer_pop_10yr)
-
-```
-
-# Write annualized population tables to SQL Server
-Bind the total population, race, sex and municipality by year tables and write to SQL Server inter-census database.
-
-```{r}
-# bind tables
-standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_pop_ccdph_10yr_annualized %>%
-  mutate(stratification = "total") %>% 
-  bind_rows(
-    standard_age_groups_seer_pop_race_ccdph_10yr_annualized %>%
-      rename(stratification = race)
-    ) %>%
-  bind_rows(
-    standard_age_groups_seer_pop_sex_ccdph_10yr_annualized %>%
-      rename(stratification = sex)
-    ) %>% 
-  mutate(geoid = "ccdph")
-
-standard_age_groups_seer_10yr_annualized_all <- standard_age_groups_seer_pop_10yr_annualized %>%
-  mutate(stratification = "total") %>% 
-  bind_rows(
-    standard_age_groups_seer_pop_race_10yr_annualized %>%
-      rename(stratification = race)
-    ) %>%
-  bind_rows(
-    standard_age_groups_seer_pop_sex_10yr_annualized %>%
-      rename(stratification = sex)
-    ) %>% 
-  mutate(geoid = "scc") %>% 
-  bind_rows(standard_age_groups_seer_ccdph_10yr_annualized_all) %>% 
-  bind_rows(
-    standard_age_groups_seer_pop_zcta_10yr_annualized %>%
-      mutate(stratification = "total") %>% 
-      rename(geoid = geoid_place)
-    ) %>% 
-  select(-c(dif_2010_20))
-
-# connect inter-census database
-con_inter_census <- dbConnect(odbc::odbc(),
-                        Driver   = "SQL Server",
-                        Server   = key_get("ccdph_sql_server"),
-                        Database = "inter-census")
-
-  
-# write annualized data to SQL Server
-dbWriteTable(con_inter_census,
-         Id(schema = "ref", table = "annualized-population-2010-2022-10yr-age-race-sex-scc-ccdph-muni"),
-         overwrite = TRUE,
-         value = standard_age_groups_seer_10yr_annualized_all,
-         encoding = "latin1",
-         fileEncoding="UTF-8")
 ```
