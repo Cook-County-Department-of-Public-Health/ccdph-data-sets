@@ -3,5 +3,8 @@
 .RData
 .Ruserdata
 *.Rproj
+*.csv
+*.zip
+*.xlsx
 *.DS_Store
 data-set-creation-code/raw-data/healthcare-facilities

@@ -16,12 +16,10 @@ library(dplyr)
 library(sf)
 library(data.table)
 library(keyring)
-library(openxlsx)
 ```
 
-# connect to inter-census SQL Server databases
+# connect to inter-census and inter-spatial SQL Server databases, add reference tables
 ```{r}
-
 con_inter_census <- dbConnect(odbc::odbc(),
                                Driver   = "SQL Server",
                                Server   = key_get("ccdph_sql_server"),
@@ -34,17 +32,20 @@ census_standard_age_groups <-  dbReadTable(conn = con_inter_census,
 
 # read zcta table from database
 zctas_cook_county <- dbReadTable(conn = con_inter_census, 
-               Id(schema="ref", table="decennial-2020-total-by-zcta")) %>% 
+               Id(schema="ref", table="decennial-2010-total-by-zcta")) %>% 
   mutate(geoid_zcta = as.character(geoid_zcta))
 
 ```
 
-# create 2020 decennial census groups and variables tables
+# review 2010 decennial census APIs, groups and variables
 ```{r}
+# return all census 2010 APIs
+allCensusApis_df <- listCensusApis() %>% filter(vintage=="2010")
+
 # return all groups in census 2020 demographic and housing counts
-groups_census_2020_dhc <- listCensusMetadata(
-  name = "dec/dhc",
-  vintage = 2020,
+groups_census_2010_sf1 <- listCensusMetadata(
+  name = "dec/sf1",
+  vintage = 2010,
   type = "groups",
   group = NULL,
   variable_name = NULL,
@@ -52,16 +53,16 @@ groups_census_2020_dhc <- listCensusMetadata(
 )
 
 # select all PCT12 (age, sex, race) groups
-groups_age_sex_race <- groups_census_2020_dhc %>%
+groups_age_sex_race <- groups_census_2010_sf1 %>%
   select(name, description) %>%
   filter(str_detect(name, "PCT12")) %>%
   distinct() %>%
   arrange(name)
 
 # return all variables in census 2020 demographic and housing counts
-variables_census_2020_dhc <- listCensusMetadata(
-  name = "dec/dhc",
-  vintage = 2020,
+variables_census_2010_sf1 <- listCensusMetadata(
+  name = "dec/sf1",
+  vintage = 2010,
   type = "variables",
   group = NULL,
   variable_name = NULL,
@@ -70,26 +71,26 @@ variables_census_2020_dhc <- listCensusMetadata(
 
 ```
 
-# create 2020 custom decennial groups and variables tables
+# create detailed age, sex, and race variable tables and lists
 ```{r}
 # select all PCT12 (age, sex) variables
-variables_age_sex_race <- variables_census_2020_dhc %>%
+variables_age_sex_race <- variables_census_2010_sf1 %>%
   select(name, label) %>%
-  filter(str_detect(name, "PCT12")) %>%
+  filter(str_detect(name, "PCT012")) %>%
   distinct() %>%
   arrange(name)
 
 variables_age_groups <- variables_age_sex_race %>%
-  filter(str_detect(name, "PCT12_")) %>%
-  mutate(col_number = as.integer(substr(name,7,9)),
-         label = str_replace_all(label, " !!Total:","Total"),
-         label = str_replace_all(label, "Total!!Male:!!",""),
-         label = str_replace_all(label, "Total!!Female:!!",""),
+  filter(str_detect(name, "PCT012A")) %>%
+  mutate(col_number = as.integer(substr(name,8,10)),
+         label = str_replace_all(label, " !!Total!!Male",""),
+         label = str_replace_all(label, "Total!!Male!!",""),
+         label = str_replace_all(label, "Total!!Female!!",""),
          label = str_replace_all(label, "!!","")) %>%
   select(-name, name_age_1yr = label)
 
 variables_age_groups_mod <- variables_age_groups %>% 
-  left_join(census_standard_age_groups, by="name_age_1yr")
+  left_join(census_standard_age_groups, by="name_age_1yr") %>% drop_na(order_age_1yr)
 
 # groups used for data tables
 # name	description
@@ -112,78 +113,87 @@ variables_age_groups_mod <- variables_age_groups %>%
 
 # Download variables for partial zctas (zctas partially inside Cook County)
 ```{r}
-
 # create list subset of partial zctas
 zctas_cook_county_partial_df <- as.list(zctas_cook_county %>% filter(partial==1 & pop_in_cook > 0) %>%  select(geoid_zcta))
 
 zctas_cook_county_partial <- zctas_cook_county_partial_df$geoid_zcta
 
+# Download variables by census tract
 grouplist <- c("PCT12H", "PCT12I", "PCT12J", "PCT12K", "PCT12L","PCT12M","PCT12N","PCT12O")
-groupname <- c("Hispanic/Latino", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic American Indian and Alaska Native", "Non-Hispanic Asian","Non-Hispanic Native Hawaiian and other Pacific Islander","Non-Hispanic Some Other","Non-Hispanic Multiracial")
-ayear = 2020
+
+groupname <- c("Hispanic", "NH White", "NH Black", "NH AIAN", "NH Asian","NH NHPI","NH Other","NH Multiracial")
+
+#groupname <- c("Hispanic", "Non-Hispanic White", "Non-Hispanic Black", "Non-Hispanic Native American or Alaskan Native", "Non-Hispanic Asian","Non-Hispanic Native Hawaiian or Other Pacific Islander","Non-Hispanic Other","Non-Hispanic Two or More Races")
+
+ayear <- 2010
 
 for (agroup in grouplist) {
-  for (azcta_partial in  zctas_cook_county_partial){
-      agroupname = paste("group(",agroup,")",sep="")
-      aregion = paste0("county (or part):031")
-      aregionin = paste0("state:17 zip code tabulation area (or part):", as.character(azcta_partial))
-      print(agroupname)
-      print(aregionin)
-      census_group <- getCensus(name = "dec/dhc",
-                             vintage = ayear,
-                             vars = c(agroupname),
-                             region = aregion, # zctas
-                             regionin=aregionin,
-                             key=key_get("census_api_key"))
-      census_group <- census_group %>% 
-        select(-ends_with("NA")) %>%
-        mutate(census_group = agroup,
-               vintage = ayear,
-               source = "https://api.census.gov/data/2020/dec/dhc") %>%
-        rename_with(~str_replace(.,agroup,"age"))
-      assign(paste(agroup,"zcta_partial",azcta_partial, ayear,sep="_"),census_group)
-    }
+  for (azcta_partial in  zctas_cook_county_partial) {
+    agroupname = paste("group(",agroup,")",sep="")
+    agroup_mod <- str_replace(agroup,"PCT","PCT0")
+    aregion = paste0("county (or part):031")
+    aregionin = paste0("state:17 zip code tabulation area (or part):", as.character(azcta_partial))
+    print(agroupname)
+    print(aregionin)
+    census_group <- getCensus(name = "dec/sf1",
+                           vintage = ayear,
+                           vars = c(agroupname),
+                           region = aregion,
+                           regionin=aregionin,
+                           key=key_get("census_api_key"))
+    census_group <- census_group %>% 
+      select(-ends_with("NA")) %>%
+      mutate(census_group = agroup,
+             vintage = ayear,
+             source = "https://api.census.gov/data/2010/dec/sf1") %>%
+      rename_with(~str_replace(.,agroup_mod,"age_"))
+    assign(paste(agroup,"zcta_partial",azcta_partial, ayear,sep="_"),census_group)
   }
+}
 
 # bind partial zcta tables
 apattern <- paste("_zcta_partial_")
 alist_pattern <- mget(ls(pattern = apattern))
-zctas_partial_single_age_sex_race_2020 <- bind_rows(alist_pattern)  %>%
+zctas_partial_single_age_sex_race_2010 <- bind_rows(alist_pattern)  %>%
   rename(geoid_zcta = zip_code_tabulation_area_or_part) %>%
-  select(-c(county_or_part, GEO_ID, NAME, state))
+  select(-c(county_or_part, NAME, GEO_ID, state))
 
-# remove partial zctas tables from environment
-rm(list=ls(pattern="_zcta_partial"))
-
+# remove partial muni tables from environment
+rm(list=ls(pattern="_zcta_partial_"))
 ```
 
 # Download variables for all zctas
 ```{r}
+ayear <- 2010
 
 for (agroup in grouplist) {
-      agroupname = paste("group(",agroup,")",sep="")
-      census_group <- getCensus(name = "dec/dhc",
-                             vintage = ayear,
-                             vars = c(agroupname),
-                             region = "zip code tabulation area (or part):*",
-                             regionin = "state:17",                       
-                             key=key_get("census_api_key"))
-      print(agroupname)
-      census_group <- census_group %>%
-        select(-ends_with("NA")) %>%
-        mutate(census_group = agroup,
-               vintage = ayear,
-               source = "https://api.census.gov/data/2020/dec/dhc") %>%
-        rename_with(~str_replace(.,agroup,"age"))
-      assign(paste(agroup,"zctas_all", ayear,sep="_"),census_group)
-  }
+  agroupname = paste("group(", agroup, ")", sep = "")
+  agroup_mod <- str_replace(agroup, "PCT", "PCT0")
+  print(agroupname)
+  census_group <- getCensus(
+    name = "dec/sf1",
+    vintage = ayear,
+    vars = c(agroupname),
+   region = "zip code tabulation area (or part):*",
+   regionin = "state:17",  
+    key = key_get("census_api_key")
+   )
+   census_group <- census_group %>%
+    select(-ends_with("NA")) %>%
+    mutate(census_group = agroup,
+           vintage = ayear,
+           source = "https://api.census.gov/data/2010/dec/sf1") %>%
+    rename_with( ~ str_replace(., agroup_mod, "age_"))
+  assign(paste(agroup, "zctas_all", ayear, sep = "_"),
+         census_group)
+}
 
 # bind total other zcta tables
 apattern <- paste("_zctas_all_")
 alist_pattern <- mget(ls(pattern = apattern))
 
 # create comprehensive zcta table with total populations
-zctas_total_single_age_sex_race_2020 <- bind_rows(alist_pattern) %>%
+zctas_total_single_age_sex_race_2010 <- bind_rows(alist_pattern) %>%
   rename(geoid_zcta = zip_code_tabulation_area_or_part) %>%  
   right_join(zctas_cook_county %>% select(geoid_zcta), by="geoid_zcta") %>% 
   drop_na(GEO_ID) %>% 
@@ -191,34 +201,34 @@ zctas_total_single_age_sex_race_2020 <- bind_rows(alist_pattern) %>%
 
 # create comprehensive zcta table with total populations 
 # and partial places removed
-zctas_nopartial_single_age_sex_race_2020 <- zctas_total_single_age_sex_race_2020 %>%
-  anti_join(zctas_partial_single_age_sex_race_2020, by="geoid_zcta")
+zctas_nopartial_single_age_sex_race_2010 <- zctas_total_single_age_sex_race_2010 %>%
+  anti_join(zctas_partial_single_age_sex_race_2010, by="geoid_zcta")
 
 # remove total muni tables from environment
 rm(list=ls(pattern="_zctas_all_"))
-
 ```
 
 # Bind partial and total zcta population tables
 ```{r}
 # bind partial and non-partial muni tables
-zctas_withpartial_single_age_sex_race_2020 <- zctas_nopartial_single_age_sex_race_2020 %>% bind_rows(zctas_partial_single_age_sex_race_2020)
+zctas_withpartial_single_age_sex_race_2010 <- zctas_nopartial_single_age_sex_race_2010 %>% bind_rows(zctas_partial_single_age_sex_race_2010)
 
 group_list <- as.data.frame(grouplist) %>% rename(census_group = 1)
 group_category <- as.data.frame(groupname) %>% rename(race = 1)
 group_categories <- bind_cols(group_list, group_category)
 
-# reformat partial and non-partial zcta table
-zctas_withpartial_single_age_sex_race_2020_attr <- zctas_withpartial_single_age_sex_race_2020 %>%
+# reformat partial and non-partial zcta tables
+zctas_withpartial_single_age_sex_race_2010_attr <- zctas_withpartial_single_age_sex_race_2010 %>%
+  select(geoid_zcta, vintage, source, census_group, starts_with("age")) %>% 
   left_join(group_categories, by = "census_group") %>%
-  pivot_longer(cols=c(age_001N:age_209N), names_to = "age_sex", values_to = "population") %>%
+  pivot_longer(cols=c(age_001:age_209), names_to = "age_sex", values_to = "population") %>%
   mutate(col_number = as.integer(substr(age_sex,5,7)),
          sex = case_when(col_number == 1 ~ "Total",
                    col_number > 2 & col_number <=105 ~ "Male",
                    col_number > 106 & col_number <=209 ~ "Female")) %>%
+  left_join(variables_age_groups_mod, by="col_number") %>%
   filter(col_number >= 3, col_number != 106) %>%
   left_join(zctas_cook_county %>% select(geoid_zcta, partial), by="geoid_zcta") %>%
-  left_join(variables_age_groups_mod, by="col_number") %>%
   select(geoid_zcta,
          name_age_1yr:order_age_10yr,
          sex,
@@ -232,33 +242,26 @@ zctas_withpartial_single_age_sex_race_2020_attr <- zctas_withpartial_single_age_
           order_age_1yr)
 
 # reformat total population zcta table
-zctas_total_single_age_sex_race_2020_attr <- zctas_total_single_age_sex_race_2020 %>%
+zctas_total_single_age_sex_race_2010_attr <- zctas_total_single_age_sex_race_2010 %>%
+  select(geoid_zcta, vintage, source, census_group, starts_with("age")) %>% 
   left_join(group_categories, by = "census_group") %>%
-  pivot_longer(cols=c(age_001N:age_209N), names_to = "age_sex", values_to = "population") %>%
+  pivot_longer(cols=c(age_001:age_209), names_to = "age_sex", values_to = "population") %>%
   mutate(col_number = as.integer(substr(age_sex,5,7)),
          sex = case_when(col_number == 1 ~ "Total",
                    col_number > 2 & col_number <=105 ~ "Male",
                    col_number > 106 & col_number <=209 ~ "Female")) %>%
-  filter(col_number >= 3, col_number != 106) %>%
-  left_join(zctas_cook_county %>% select(geoid_zcta, partial), by="geoid_zcta") %>%
   left_join(variables_age_groups_mod, by="col_number") %>%
-  select(geoid_zcta,
-         name_age_1yr:order_age_10yr,
-         sex,
-         race,
-         population,
-         vintage, 
-         source) %>%
+  filter(col_number >= 3, col_number != 106) %>%
   arrange(geoid_zcta,
           sex,
           race,
-          order_age_1yr)
+          col_number) %>%
+  select(geoid_zcta, sex, race, name_age_1yr:order_age_10yr, population, vintage, source)
 
 # add total population column to with partial table
-zctas_comp_single_age_sex_race_2020_attr <- zctas_withpartial_single_age_sex_race_2020_attr %>%
-  left_join(zctas_total_single_age_sex_race_2020_attr %>% select(geoid_zcta,name_age_1yr,sex,race,pop_total = population), by=c("geoid_zcta", "name_age_1yr", "sex","race")) %>%
-  select(geoid_zcta:race,pop_in_cook,pop_total,vintage,source)
-
+zctas_comp_single_age_sex_race_2010_attr <- zctas_withpartial_single_age_sex_race_2010_attr %>%
+  left_join(zctas_total_single_age_sex_race_2010_attr %>% select(geoid_zcta,name_age_1yr,sex,race,pop_total = population), by=c("geoid_zcta", "name_age_1yr", "sex","race")) %>% 
+  relocate(pop_total, .after = pop_in_cook)
 ```
 
 # write table inter-census SQL Server database
@@ -269,11 +272,12 @@ con_inter_census <- dbConnect(odbc::odbc(),
                                Database = "inter-census")
 
 dbWriteTable(conn = con_inter_census, 
-               Id(schema="ref", table="decennial-2020-single-year-age-sex-race-ethnicity-by-zcta"), 
+               Id(schema="ref", table="decennial-2010-single-year-age-sex-race-ethnicity-by-zcta"), 
                overwrite= TRUE,
-               zctas_comp_single_age_sex_race_2020_attr)
+               zctas_comp_single_age_sex_race_2010_attr)
 
-write_csv(zctas_comp_single_age_sex_race_2020_attr, "C:/Users/christopher.smith/OneDrive - Cook County Health/git_repos/justenvirons/ccdph-data-sets/2020/decennial-2020-single-year-age-sex-race-by-zcta.csv")
+write_csv(zctas_comp_single_age_sex_race_2010_attr, "C:/Users/christopher.smith/OneDrive - Cook County Health/git_repos/justenvirons/ccdph-data-sets/2010/decennial-2010-single-year-age-sex-race-by-zcta.csv")
 
 ```
+
 

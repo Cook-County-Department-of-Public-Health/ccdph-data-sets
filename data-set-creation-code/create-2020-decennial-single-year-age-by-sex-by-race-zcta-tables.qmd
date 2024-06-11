@@ -20,14 +20,6 @@ library(keyring)
 
 # connect to inter-census and inter-spatial SQL Server databases, add reference tables
 ```{r}
-con_inter_spatial <- dbConnect(odbc::odbc(),
-                               Driver   = "SQL Server",
-                               Server   = key_get("ccdph_sql_server"),
-                               Database = "inter-spatial")
-
-tracts_2020_cook_county <- dbReadTable(conn = con_inter_spatial,
-            Id(schema = "ref", table = "tracts_2020_cook_county")) %>%
-  select(geoid_tract_2020, name_district, location)
 
 con_inter_census <- dbConnect(odbc::odbc(),
                                Driver   = "SQL Server",
@@ -128,7 +120,7 @@ for (agroup in grouplist) {
                            vintage = ayear,
                            vars = c(agroupname),
                            region = "zip code tabulaton area:*", # zctas
-                           regionin="state:17+county (or part):031", # places, counties, not msas
+                           regionin="county (or part):031+state:17", # places, counties, not msas
                            key=key_get("census_api_key"))
     census_group <- census_group %>% 
       select(-ends_with("NA")) %>%
