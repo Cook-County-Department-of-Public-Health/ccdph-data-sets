@@ -1,5 +1,24 @@
 ---
-output: html_document
+title: "CCDPH EPI UNIT DATA MANAGEMENT"
+subtitle: "<u>2010 DECENNIAL DATA BY SINGLE-YEAR AGE, SEX, RACE, ZCTA</u>: <i>Steps for creating 2010 decennial population counts for rate denominators</i>"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+  
+format:
+  html:
+    code-tools: false  
+    code-fold: false
+    echo: true
+    eval: false
+    warning: false
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    reference-location: document
+    fig-cap-location: top
+    fig-height: 2.75
+    fontsize: 0.9em
+    interlinespace: -0.75em
+    embed-resources: true
 editor_options: 
   chunk_output_type: console
 ---

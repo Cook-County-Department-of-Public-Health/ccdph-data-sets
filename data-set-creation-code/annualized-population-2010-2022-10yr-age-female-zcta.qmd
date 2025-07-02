@@ -1,0 +1,293 @@
+---
+title: "CCDPH EPI UNIT DATA MANAGEMENT"
+subtitle: "<u>ANNUALIZED POPULATION ESTIMATES BY SEX, ZCTA, 2010-2022</u>: <i>Steps for calculating annual population estimates using decennial data for rate denominators</i>"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+  
+format:
+  html:
+    code-tools: false  
+    code-fold: false
+    echo: true
+    eval: false
+    warning: false
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    reference-location: document
+    fig-cap-location: top
+    fig-height: 2.75
+    fontsize: 0.9em
+    interlinespace: -0.75em
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# Activate R packages
+```{r}
+#| label: activate R packages
+#| eval: true
+#| echo: false
+
+library("dplyr") # data wrangling
+library("tidyverse") # data wrangling
+library("data.table") # data wrangling
+library("DT") # for creating interactive HTML-based tables
+library("stringr") # string formatting
+library("stringi")
+library("readr") # for reading fwf files
+library("haven") # for importing sas file
+library("odbc") # connections to database
+library("DBI") # connections to database
+library("keyring") # encrypt passwords
+library("epitools") # algorithms for epi work
+library("openxlsx") # connections to Excel
+library("naniar") # algorithms for processing NAs
+library("dbplyr")
+library("sf")
+library(scales)
+library(zoo)
+
+```
+
+# Format SEER tables for age-adjustement
+The following code imports the reference *seer-standard-2000-us-population-single-year* table from the *inter-census* database. This reference table is later combined with census population data that are used to generate crude prevalence rates.
+
+```{r}
+
+#| code-fold: false
+# connect to inter-census database
+con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census")
+
+# Use dbplyr to import standard age groups table from SQL Server
+seer_single_year <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "seer-standard-2000-us-population-single-year")) %>%
+  collect() %>% 
+  mutate(order_age_1yr = as.numeric(str_sub(age, 1,3))) %>% 
+  select(order_age_1yr,
+         pct_seer = proportion)
+
+# Use dbplyr to import standard age groups table from SQL Server
+standard_age_groups_seer <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "standard-age-groups")) %>%
+  collect() %>%
+  left_join(seer_single_year, by="order_age_1yr") %>% 
+  drop_na(order_age_1yr) %>% 
+  select(order_age_1yr,
+         name_age_1yr,
+         name_age_5yr,
+         name_age_10yr,
+         order_age_10yr,
+         pct_seer) %>% 
+  mutate(name_age_1yr = if_else(order_age_1yr >= 100,"100 years and older",name_age_1yr)) %>% 
+  drop_na(pct_seer) %>% 
+  group_by(order_age_10yr,
+           name_age_10yr) %>%
+  summarise(pct_seer = sum(pct_seer))
+
+# remove unneeded tables
+rm(seer_single_year)
+
+```
+
+# Format 2010 and 2020 population data
+This code imports 2010 and 2020 decennial population data by 10-year age group, race, ethnicity and sex from the inter-census database. To generate stable rates over time, population numbers are annualized by adding (or subtracting) a standard population count based on the net annual change in population between 2010 and 2020 for each population subgroup (i.e., total population by age; population by age by race; population by age and sex). The three population subgroup tables are joined with SEER rates/proportions for age-standardization based on [CDC guidance](https://www.cdc.gov/nchs/hus/sources-definitions/age-adjustment.htm).
+
+This code imports 2010 and 2020 decennial population data by single-year age group, race, ethnicity and sex from the inter-census database. Join these population tables with SEER rates for age-standardization.
+
+## Total ZCTA population with SEER rates
+Create total population by year table by ZCTA.
+
+```{r}
+con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census")
+
+# import 2010 SCC total population data by zcta
+pop_2010_scc_total_10yr <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "decennial-2010-single-year-age-sex-race-ethnicity-by-zcta")) %>%
+  select(geoid_zcta,
+         order_age_10yr,
+         name_age_10yr,
+         population = pop_in_cook) %>% 
+  group_by(geoid_zcta,
+           order_age_10yr) %>% 
+  summarize(pop_2010 = sum(population)) %>% 
+  arrange(geoid_zcta,
+          order_age_10yr) %>% 
+  collect() %>% 
+  as.data.frame()
+
+# import 2020 SCC total population data by year
+pop_2020_scc_total_10yr <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "decennial-2020-single-year-age-sex-race-ethnicity-by-zcta")) %>%
+  select(geoid_zcta,
+         order_age_10yr,
+         name_age_10yr,
+         population = pop_in_cook) %>% 
+  group_by(geoid_zcta,
+           order_age_10yr) %>% 
+  summarize(pop_2020 = sum(population)) %>% 
+  arrange(geoid_zcta,
+          order_age_10yr) %>% 
+  collect() %>% 
+  as.data.frame()
+
+# Join SCC total population data with standard age groups
+standard_age_groups_seer_pop_10yr <- standard_age_groups_seer %>% 
+  left_join(pop_2010_scc_total_10yr, by=c("order_age_10yr")) %>% 
+   right_join(pop_2020_scc_total_10yr, by=c("geoid_zcta","order_age_10yr")) %>%
+  mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
+
+# Create 10-year standard age group population table (2010-2020 populations)
+atable <- standard_age_groups_seer_pop_10yr
+
+for (ayear in 1:12){
+  anewyear = paste0("pop_",as.character(2010 + ayear))
+  atable <- atable %>% 
+    mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
+}
+
+assign(value = atable, x = "standard_age_groups_seer_pop_zcta_10yr_annualized")
+standard_age_groups_seer_pop_zcta_10yr_annualized <- standard_age_groups_seer_pop_zcta_10yr_annualized %>% 
+  relocate(pop_2010, .before = pop_2011) %>% 
+  relocate(pop_2020, .after = pop_2019) %>% 
+  pivot_longer(cols = pop_2010:pop_2022,
+               names_to = "pop_year",
+               values_to = "population") %>% 
+  mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_",""))) %>% 
+  mutate(stratification = "Total")
+
+standard_age_groups_seer_pop_zcta_10yr_annualized <- standard_age_groups_seer_pop_zcta_10yr_annualized %>% 
+  mutate(sex = "All")
+
+# remove unneeded tables
+rm(pop_2010_scc_total_10yr, 
+   standard_age_groups_seer_pop_10yr)
+
+```
+
+
+## ZCTA population by sex
+Create population by year, sex and ZCTA.
+
+```{r}
+con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census")
+
+# import 2010 SCC total population data by zcta
+pop_2010_zcta_sex_10yr <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "decennial-2010-single-year-age-sex-race-ethnicity-by-zcta")) %>%
+  select(geoid_zcta,
+         order_age_10yr,
+         name_age_10yr,
+         population = pop_in_cook,
+         sex) %>% 
+  group_by(geoid_zcta,
+           order_age_10yr,
+           sex) %>% 
+  summarize(pop_2010 = sum(population)) %>% 
+  arrange(geoid_zcta,
+          sex,
+          order_age_10yr) %>% 
+  collect() %>% 
+  as.data.frame()
+
+# import 2020 SCC total population data by year
+pop_2020_zcta_sex_10yr <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table = "decennial-2020-single-year-age-sex-race-ethnicity-by-zcta")) %>%
+  select(geoid_zcta,
+         order_age_10yr,
+         name_age_10yr,
+         population = pop_in_cook,
+         sex) %>% 
+  group_by(geoid_zcta,
+           order_age_10yr,
+           sex) %>% 
+  summarize(pop_2020 = sum(population)) %>% 
+  arrange(geoid_zcta,
+          sex,
+          order_age_10yr) %>% 
+  collect() %>% 
+  as.data.frame()
+
+# Join SCC total population data with standard age groups
+standard_age_groups_seer_sex_10yr <- standard_age_groups_seer %>% 
+  left_join(pop_2010_zcta_sex_10yr, by=c("order_age_10yr")) %>% 
+   right_join(pop_2020_zcta_sex_10yr, by=c("geoid_zcta","order_age_10yr","sex")) %>%
+  mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
+
+# Create 10-year standard age group population table (2010-2020 populations)
+atable <- standard_age_groups_seer_sex_10yr
+
+for (ayear in 1:12){
+  anewyear = paste0("pop_",as.character(2010 + ayear))
+  atable <- atable %>% 
+    mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
+}
+
+assign(value = atable, x = "standard_age_groups_seer_sex_pop_zcta_10yr_annualized")
+standard_age_groups_seer_sex_pop_zcta_10yr_annualized <- standard_age_groups_seer_sex_pop_zcta_10yr_annualized %>% 
+  relocate(pop_2010, .before = pop_2011) %>% 
+  relocate(pop_2020, .after = pop_2019) %>% 
+  pivot_longer(cols = pop_2010:pop_2022,
+               names_to = "pop_year",
+               values_to = "population") %>% 
+  mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_",""))) %>% 
+  mutate(stratification = "sex")
+
+# remove unneeded tables
+rm(pop_2010_zcta_sex_10yr, 
+   pop_2020_zcta_sex_10yr,
+   standard_age_groups_seer_sex_10yr)
+
+```
+
+## Bind and write annualized population tables to SQL Server
+Bind the total population, race, sex and municipality by year tables and write to SQL Server inter-census database.
+
+```{r}
+
+# standard_age_groups_seer_sex_pop_zcta_10yr_annualized
+# standard_age_groups_seer_pop_zcta_10yr_annualized
+
+# zcta tables
+standard_age_groups_seer_pop_zcta_10yr_annualized_all <- standard_age_groups_seer_pop_zcta_10yr_annualized %>%
+  bind_rows(
+    standard_age_groups_seer_sex_pop_zcta_10yr_annualized ) %>% 
+  mutate(geoid = "zcta")
+
+# connect inter-census database
+con_inter_census <- dbConnect(odbc::odbc(),
+                        Driver   = "SQL Server",
+                        Server   = key_get("ccdph_sql_server"),
+                        Database = "inter-census")
+
+  
+# write annualized data to SQL Server
+dbWriteTable(con_inter_census,
+         Id(schema = "ref", table = "annualized-population-2010-2022-10yr-age-sex-zcta"),
+         overwrite = TRUE,
+         value = standard_age_groups_seer_pop_zcta_10yr_annualized_all,
+         encoding = "latin1",
+         fileEncoding="UTF-8")
+```
+
