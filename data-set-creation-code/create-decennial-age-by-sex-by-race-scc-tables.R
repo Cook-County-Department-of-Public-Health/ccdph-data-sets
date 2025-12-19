@@ -12,7 +12,7 @@ library(keyring)
 #Census Groups: PCT12H-PCT120 (make sure non hispanic/latino (9/1/22)
 cen_groups_tables <- listCensusMetadata(
                       name = "dec/sf1",
-                      vintage = cyear,
+                      vintage = 2000,
                       type = "groups") %>%
                      filter(grepl("P12", name))
 
