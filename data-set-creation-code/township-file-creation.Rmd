@@ -1,0 +1,50 @@
+---
+title: ''
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load required packages
+library(jsonlite)
+library(tidyverse)
+library(keyring)
+library(janitor)
+
+#store your census api key - only needs to be done once per computer
+#key_set("census-api-key")
+
+#set master API URL
+census_api <- "https://api.census.gov/data/2020/dec/dhc"
+#census_api <- "https://api.census.gov/data/2020/dec/pl"
+
+#store variables for master URL
+census_var_names <- fromJSON(paste0(census_api, "/variables")) %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+```
+
+```{r create-township-file}
+
+#total population
+variable <- "P1_001N"
+
+#raw data from API
+township_pull<- fromJSON(paste0(census_api,"?get=NAME,GEO_ID,", variable, "&for=county%20subdivision:*&in=state:17&in=county:031&key=", key_get("census-api-key")))
+
+#remove cities and rename variables
+township_clean <- township_pull %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) %>%
+  filter(!grepl("city|not defined", NAME)) %>%
+  mutate(name = gsub(" township, Cook County, Illinois", "", NAME)) %>%
+  select(name, geoid = `county subdivision`, full_geoid = GEO_ID, pop = P1_001N)
+  
+#export file
+write_csv(township_clean, paste0(key_get("downloads_path"), "decennial-2020-political-township.csv"))
+
+```
