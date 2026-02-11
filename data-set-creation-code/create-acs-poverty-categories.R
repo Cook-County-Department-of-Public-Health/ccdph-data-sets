@@ -50,14 +50,27 @@ acs_tract_pov_percent <- acs_tract_pov %>%
   mutate(percent_poverty = pov_pop / total_pop) %>%
   mutate(poverty_cat = cut(percent_poverty, breaks = c(0, .05, .10, .20, 1), labels = c("0-4.9%", "5-9.9%", "10-19.9%", "20-100%"), right = F)) 
 
+#pull the total populatopn
 #join poverty categories back to total ACS tract populations and aggregate
-
-pov_cat_pops <- ccdph_tracts %>%
-  left_join(select(acs_tract_pov_percent, tract_code = tract, poverty_cat)) %>%
+#pull poverty table for all tracts
+acs_tract_total <- fromJSON(paste0("https://api.census.gov/data/2024/acs/acs5?get=NAME,B01001_001E&for=tract:*&in=state:17&key=", key_get("census-api-key"))) %>%
+  as.data.frame() %>%
+  janitor::row_to_names(row_number = 1) %>%
+  filter(tract %in% ccdph_tracts$tract_code) %>%
+  mutate(total_acs_pop = as.numeric(B01001_001E)) %>%
+  left_join(select(acs_tract_pov_percent, tract, poverty_cat)) %>%
   group_by(poverty_cat) %>%
-  summarize(pop = sum(population)) %>%
-  ungroup()
-  
+  summarize(pop = sum(total_acs_pop)) %>%
+  ungroup
+                             
+write_csv(acs_tract_total, "acs-5yr-2024-povery-cat-pops.csv")
 
+#if desired, same calculation using decennial (ACS total is a fair bit under decennial)
+# pov_cat_pops <- ccdph_tracts %>%
+#   left_join(select(acs_tract_pov_percent, tract_code = tract, poverty_cat)) %>%
+#   group_by(poverty_cat) %>%
+#   summarize(pop = sum(population)) %>%
+#   ungroup()
+  
 
 
