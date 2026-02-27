@@ -9,6 +9,7 @@ library(dplyr)
 library(keyring)
 library(DBI)
 library(odbc)
+library(DT)
 ```
 
 # Return all US Buearu of the Census APIs
