@@ -61,9 +61,11 @@ acs_tract_total <- fromJSON(paste0("https://api.census.gov/data/2024/acs/acs5?ge
   left_join(select(acs_tract_pov_percent, tract, poverty_cat)) %>%
   group_by(poverty_cat) %>%
   summarize(pop = sum(total_acs_pop)) %>%
-  ungroup
+  ungroup %>%
+  mutate(vintage = vintage,
+         stratification = "ccdph")
                              
-write_csv(acs_tract_total, "acs-5yr-2024-povery-cat-pops.csv")
+write_csv(acs_tract_total, "acs-5yr-poverty-levels-jurisdiction.csv")
 
 #if desired, same calculation using decennial (ACS total is a fair bit under decennial)
 # pov_cat_pops <- ccdph_tracts %>%
