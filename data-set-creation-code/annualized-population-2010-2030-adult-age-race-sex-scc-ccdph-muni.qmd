@@ -1,0 +1,328 @@
+---
+title: "CCDPH EPI UNIT DATA MANAGEMENT"
+subtitle: "<u>ANNUALIZED POPULATION ESTIMATES</u>: <i>Steps for calculating annual population estimates using decennial data for rate denominators</i>"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+format:
+  html:
+    code-tools: false
+    code-fold: false
+    echo: true
+    eval: false
+    warning: false
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    reference-location: document
+    fig-cap-location: top
+    fig-height: 2.75
+    fontsize: 0.9em
+    interlinespace: -0.75em
+    embed-resources: true
+editor_options:
+  chunk_output_type: console
+---
+
+# Activate R packages
+
+Population estimation for annualized decennial denominators relies on a set of R packages for database connectivity, data transformation, and output persistence. The packages below must be loaded prior to executing any subsequent code blocks.
+
+```{r}
+#| label: activate R packages
+#| eval: true
+
+library("tidyverse") # data wrangling and reshaping (dplyr, tidyr, stringr)
+library("odbc")      # SQL Server database driver
+library("DBI")       # database interface (dbConnect, dbWriteTable)
+library("keyring")   # secure retrieval of encrypted server credentials
+library("dbplyr")    # translates dplyr verbs to SQL for remote table queries
+```
+
+# Format SEER tables for age-adjustment
+
+The Surveillance, Epidemiology, and End Results (SEER) standard 2000 U.S. population is used as the reference population for age-standardized rate calculations throughout CCDPH's epidemiologic analyses. This section imports the SEER standard population table from the `inter-census` database, retaining only the single-year age order index (`order_age_1yr`) and the corresponding SEER proportion (`pct_seer`). These proportions are subsequently joined to observed population counts to support direct age standardization following [CDC guidance](https://www.cdc.gov/nchs/hus/sources-definitions/age-adjustment.htm).
+
+```{r}
+# connect to inter-census database
+con_inter_census <- dbConnect(odbc::odbc(),
+                              Driver   = "SQL Server",
+                              Server   = key_get("ccdph_sql_server"),
+                              Database = "inter-census")
+
+# import single-year SEER standard proportions; parse the numeric age
+# from the character age label and retain only the columns needed for joining
+seer_single_year <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table  = "seer-standard-2000-us-population-single-year")) %>%
+  collect() %>%
+  mutate(order_age_1yr = as.numeric(str_sub(age, 1, 3))) %>%
+  select(order_age_1yr,
+         pct_seer = proportion)
+```
+
+# Build annualized tables for select stratifications, 2010–2030
+
+Decennial census counts represent population snapshots at ten-year intervals (2010, 2020). Because CCDPH's disease surveillance and rate calculations require annual population denominators, intercensal estimates must be derived through linear interpolation for years 2011 through 2019, and extrapolated forward through 2030 using the same decennial trend. The subsections below define the helper functions, import the shared raw population data, and apply the annualization process across the stratifications required for CCDPH reporting — total, sex, and race/ethnicity — for three geographic levels: Suburban Cook County (SCC), the CCDPH service area, and individual CCDPH health districts.
+
+## Annualize function
+
+`fx_annualize` performs linear interpolation between 2010 and 2020 decennial counts to produce annual population estimates, then extrapolates through 2030 using the same annual rate of change. It creates one column per year (`pop_2011` through `pop_2030`), then reshapes the result from wide to long format to facilitate downstream joining and rate calculation. This function is the computational core called by both population-building functions defined below.
+
+```{r}
+fx_annualize <- function(df) {
+
+  # compute the average annual change between the two census years
+  df <- df %>% mutate(dif_2010_20 = (pop_2020 - pop_2010) / 10)
+
+  # create one column per year from 2011 to 2030 using linear projection
+  for (ayear in 1:20) {
+    anewyear <- paste0("pop_", as.character(2010 + ayear))
+    df <- df %>% mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
+  }
+
+  # reorder columns so pop_2010:pop_2030 are contiguous, then pivot to long
+  df %>%
+    relocate(pop_2010, .before = pop_2011) %>%
+    relocate(pop_2020, .after  = pop_2019) %>%
+    pivot_longer(cols      = pop_2010:pop_2030,
+                 names_to  = "pop_year",
+                 values_to = "population") %>%
+    mutate(pop_year = as.integer(str_replace(pop_year, "pop_", ""))) %>%
+    select(-dif_2010_20)
+}
+```
+
+## Import decennial population data
+
+Both the single-year and adult age group tables draw from the same underlying decennial census data. To avoid redundant database queries, the 2010 and 2020 tract-level population tables are imported once here, retaining geography identifiers (`location`, `name_district`) alongside the demographic grouping variables. Ages 100 and above are collapsed into a single "100 years and older" category. The two census years are then joined together with the SEER proportions to form a single analysis-ready object (`pop_raw_joined`) that is referenced by both downstream annualization steps.
+
+```{r}
+con_inter_census <- dbConnect(odbc::odbc(),
+                              Driver   = "SQL Server",
+                              Server   = key_get("ccdph_sql_server"),
+                              Database = "inter-census")
+
+# import 2010 tract-level counts, grouping to location/district/age/sex/race;
+# collapse ages 100+ into a single group
+pop_2010_raw <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table  = "decennial-2010-single-year-age-sex-race-ethnicity-by-tract")) %>%
+  mutate(name_age_1yr  = if_else(order_age_1yr >= 100, "100 years and older", name_age_1yr),
+         order_age_1yr = if_else(order_age_1yr >= 100, 100L, order_age_1yr)) %>%
+  group_by(location, name_district, order_age_1yr, name_age_1yr, sex, race) %>%
+  summarize(pop_2010 = sum(population), .groups = "drop") %>%
+  collect() %>%
+  as.data.frame()
+
+# import 2020 tract-level counts using the same grouping structure
+pop_2020_raw <-
+  tbl(con_inter_census,
+      Id(schema = "ref",
+         table  = "decennial-2020-single-year-age-sex-race-ethnicity-by-tract")) %>%
+  mutate(name_age_1yr  = if_else(order_age_1yr >= 100, "100 years and older", name_age_1yr),
+         order_age_1yr = if_else(order_age_1yr >= 100, 100L, order_age_1yr)) %>%
+  group_by(location, name_district, order_age_1yr, name_age_1yr, sex, race) %>%
+  summarize(pop_2020 = sum(population), .groups = "drop") %>%
+  collect() %>%
+  as.data.frame()
+
+# join 2010 and 2020 counts, then attach SEER age-standardization proportions
+pop_raw_joined <- pop_2010_raw %>%
+  left_join(pop_2020_raw,
+            by = c("location", "name_district", "order_age_1yr",
+                   "name_age_1yr", "sex", "race")) %>%
+  left_join(seer_single_year, by = "order_age_1yr")
+
+# remove individual census year imports; pop_raw_joined is the shared source
+rm(pop_2010_raw, pop_2020_raw)
+```
+
+## Single-year age groups stratified by sex, race, and geography
+
+This subsection produces annualized population estimates at single-year age resolution for use as denominators in age-specific rate calculations. `fx_build_1yr_annualized` accepts the joined population data and an optional vector of geography column names (`geo_vars`), then produces total, sex-stratified, and race-stratified estimates by calling `fx_annualize` on each grouping. The final object `pop_1yr_annualized_all` contains long-format estimates for SCC, CCDPH, and each CCDPH health district for all years 2010–2030.
+
+```{r}
+# fx_build_1yr_annualized: summarises and annualizes by single-year age group
+# geo_vars: NULL for single-area geographies (SCC, CCDPH);
+#           "name_district" to produce one row per district per age/year
+fx_build_1yr_annualized <- function(df, geo_vars = NULL) {
+
+  grp_base <- c(geo_vars, "order_age_1yr", "name_age_1yr")
+
+  # total population across all sex and race groups
+  total <- df %>%
+    group_by(across(all_of(grp_base))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    mutate(stratification = "total")
+
+  # population stratified by sex
+  by_sex <- df %>%
+    group_by(across(all_of(c(grp_base, "sex")))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    rename(stratification = sex)
+
+  # population stratified by race/ethnicity
+  by_race <- df %>%
+    group_by(across(all_of(c(grp_base, "race")))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    rename(stratification = race)
+
+  bind_rows(total, by_sex, by_race)
+}
+
+# build and combine annualized estimates for all three geographic levels
+pop_1yr_annualized_all <- bind_rows(
+
+  # Suburban Cook County (excludes Chicago)
+  pop_raw_joined %>%
+    filter(location != "Chicago") %>%
+    fx_build_1yr_annualized() %>%
+    mutate(geoid = "scc"),
+
+  # CCDPH service area
+  pop_raw_joined %>%
+    filter(location == "CCDPH") %>%
+    fx_build_1yr_annualized() %>%
+    mutate(geoid = "ccdph"),
+
+  # CCDPH health districts (excludes out-of-jurisdiction records)
+  pop_raw_joined %>%
+    filter(name_district != "OOJ") %>%
+    fx_build_1yr_annualized(geo_vars = "name_district") %>%
+    rename(geoid = name_district)
+
+)
+```
+
+## Adult age groups stratified by sex, race, and geography
+
+This subsection produces annualized population estimates for epidemiologically meaningful adult age groupings — 18 and older, 18–34, 35 and older, 35–64, and 65 and older — which serve as denominators for adult-focused health indicators including chronic disease, injury, and maternal health outcomes. `fx_build_annualized` applies a `cross_join` with a predefined age group tibble so that single-year counts can be aggregated into each broad band; because the age bands overlap (e.g., a 40-year-old contributes to both "35 and older" and "35–64"), this approach correctly assigns each person-year to all applicable groups. The resulting object `pop_adult_annualized_all` carries total, sex-stratified, and race-stratified estimates at the SCC, CCDPH, and health district levels.
+
+```{r}
+# define overlapping adult age groups; cross_join ensures each single year
+# is assigned to every group whose age_min/age_max range it falls within
+age_groups_broad <- tibble(
+  name_age_group = c("18 years and older",
+                     "18-34 years",
+                     "35 years and older",
+                     "35-64 years",
+                     "65 years and older"),
+  age_min = c(18, 18, 35, 35, 65),
+  age_max = c(Inf, 34, Inf, 64, Inf)
+)
+
+# fx_build_annualized: cross-joins single-year data with broad age group
+# definitions, then summarises and annualizes by age group
+# geo_vars: NULL for single-area geographies; "name_district" for districts
+fx_build_annualized <- function(df, geo_vars = NULL) {
+
+  # expand single-year rows to cover all applicable age groups, then filter
+  df_broad <- df %>%
+    cross_join(age_groups_broad) %>%
+    filter(order_age_1yr >= age_min,
+           order_age_1yr <= age_max)
+
+  grp_base <- c(geo_vars, "name_age_group")
+
+  # total population across all sex and race groups
+  total <- df_broad %>%
+    group_by(across(all_of(grp_base))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    mutate(stratification = "total")
+
+  # population stratified by sex
+  by_sex <- df_broad %>%
+    group_by(across(all_of(c(grp_base, "sex")))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    rename(stratification = sex)
+
+  # population stratified by race/ethnicity
+  by_race <- df_broad %>%
+    group_by(across(all_of(c(grp_base, "race")))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    rename(stratification = race)
+
+  bind_rows(total, by_sex, by_race)
+}
+
+# build and combine annualized estimates for all three geographic levels
+pop_adult_annualized_all <- bind_rows(
+
+  # Suburban Cook County (excludes Chicago)
+  pop_raw_joined %>%
+    filter(location != "Chicago") %>%
+    fx_build_annualized() %>%
+    mutate(geoid = "scc"),
+
+  # CCDPH service area
+  pop_raw_joined %>%
+    filter(location == "CCDPH") %>%
+    fx_build_annualized() %>%
+    mutate(geoid = "ccdph"),
+
+  # CCDPH health districts (excludes out-of-jurisdiction records)
+  pop_raw_joined %>%
+    filter(name_district != "OOJ") %>%
+    fx_build_annualized(geo_vars = "name_district") %>%
+    rename(geoid = name_district)
+
+)
+
+# remove shared source object and age group lookup
+rm(pop_raw_joined, age_groups_broad)
+```
+
+# Write annualized population tables to SQL Server
+
+Upon completion of all interpolation and aggregation steps, both annualized population tables are written to the `inter-census` SQL Server database for persistent storage and downstream access by other CCDPH data workflows. The single-year table is written to `annualized-decennial-2010-2030-1yr-age-by-race-sex-scc-ccdph-district` and the adult age group table to `annualized-decennial-2010-2030-adult-age-by-race-sex-scc-ccdph-district`. These tables serve as the canonical population denominators for CCDPH rate calculations and should be refreshed whenever updated decennial or intercensal estimates become available from the U.S. Census Bureau.
+
+```{r}
+# connect to inter-census database for writing
+con_inter_census <- dbConnect(odbc::odbc(),
+                              Driver   = "SQL Server",
+                              Server   = key_get("ccdph_sql_server"),
+                              Database = "inter-census")
+
+# write single-year annualized population table
+dbWriteTable(con_inter_census,
+             Id(schema = "ref",
+                table  = "annualized-decennial-2010-2030-1yr-age-by-race-sex-scc-ccdph-district"),
+             overwrite    = TRUE,
+             value        = pop_1yr_annualized_all,
+             encoding     = "latin1",
+             fileEncoding = "UTF-8")
+
+# write adult broad age group annualized population table
+dbWriteTable(con_inter_census,
+             Id(schema = "ref",
+                table  = "annualized-decennial-2010-2030-adult-age-by-race-sex-scc-ccdph-district"),
+             overwrite    = TRUE,
+             value        = pop_adult_annualized_all,
+             encoding     = "latin1",
+             fileEncoding = "UTF-8")
+```
