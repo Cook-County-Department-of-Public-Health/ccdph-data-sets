@@ -215,13 +215,15 @@ This subsection produces annualized population estimates for epidemiologically m
 # define overlapping adult age groups; cross_join ensures each single year
 # is assigned to every group whose age_min/age_max range it falls within
 age_groups_broad <- tibble(
-  name_age_group = c("18 years and older",
+  name_age_group = c("total",
+                     "12-17 years",
+                     "18 years and older",
                      "18-34 years",
                      "35 years and older",
                      "35-64 years",
                      "65 years and older"),
-  age_min = c(18, 18, 35, 35, 65),
-  age_max = c(Inf, 34, Inf, 64, Inf)
+  age_min = c(0, 12, 18, 18, 35, 35, 65),
+  age_max = c(Inf, 17, Inf, 34, Inf, 64, Inf)
 )
 
 # fx_build_annualized: cross-joins single-year data with broad age group
@@ -291,7 +293,8 @@ pop_adult_annualized_all <- bind_rows(
     fx_build_annualized(geo_vars = "name_district") %>%
     rename(geoid = name_district)
 
-)
+) %>% 
+  select(-pct_seer)
 
 # remove shared source object and age group lookup
 rm(pop_raw_joined, age_groups_broad)
