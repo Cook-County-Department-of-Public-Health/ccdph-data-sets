@@ -1113,7 +1113,7 @@ con_inter_census <- dbConnect(odbc::odbc(),
   
 # write annualized data to SQL Server
 dbWriteTable(con_inter_census,
-         Id(schema = "ref", table = "annualized-decennial-2010-2030-10yr-age-by-race-sex-scc-ccdph-district-muni_zcta"),
+         Id(schema = "ref", table = "annualized-decennial-2010-2030-10yr-age-by-race-sex-scc-ccdph-district-muni-zcta"),
          overwrite = TRUE,
          value = standard_age_groups_seer_scc_10yr_annualized_all,
          encoding = "latin1",
