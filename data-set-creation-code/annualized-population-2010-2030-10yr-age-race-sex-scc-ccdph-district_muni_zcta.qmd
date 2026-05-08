@@ -1060,30 +1060,8 @@ Bind the total population, race, sex and municipality by year tables and write t
 
 ```{r}
 # bind tables
-standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_pop_ccdph_10yr_annualized %>%
-  mutate(stratification = "total") %>% 
-  bind_rows(
-    standard_age_groups_seer_pop_race_ccdph_10yr_annualized %>%
-      rename(stratification = race)
-    ) %>%
-  bind_rows(
-    standard_age_groups_seer_pop_sex_ccdph_10yr_annualized %>%
-      rename(stratification = sex)
-    ) %>% 
-  mutate(geoid = "ccdph")
 
-standard_age_groups_seer_district_10yr_annualized_all <- standard_age_groups_seer_pop_district_10yr_annualized %>%
-  mutate(stratification = "total") %>% 
-  bind_rows(
-    standard_age_groups_seer_pop_race_district_10yr_annualized %>%
-      rename(stratification = race)
-    ) %>%
-  bind_rows(
-    standard_age_groups_seer_pop_sex_district_10yr_annualized %>%
-      rename(stratification = sex)
-    ) %>% 
-  mutate(geoid = name_district)
-
+# SCC
 standard_age_groups_seer_scc_10yr_annualized_all <- standard_age_groups_seer_pop_scc_10yr_annualized %>%
   mutate(stratification = "total") %>% 
   bind_rows(
@@ -1094,16 +1072,54 @@ standard_age_groups_seer_scc_10yr_annualized_all <- standard_age_groups_seer_pop
     standard_age_groups_seer_pop_sex_scc_10yr_annualized %>%
       rename(stratification = sex)
     ) %>% 
-  mutate(geoid = "scc") %>% 
+  mutate(geoid = "scc",
+         layer = "region") 
+
+# CCDPH
+standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_pop_ccdph_10yr_annualized %>%
+  mutate(stratification = "total") %>% 
+  bind_rows(
+    standard_age_groups_seer_pop_race_ccdph_10yr_annualized %>%
+      rename(stratification = race)
+    ) %>%
+  bind_rows(
+    standard_age_groups_seer_pop_sex_ccdph_10yr_annualized %>%
+      rename(stratification = sex)
+    ) %>% 
+  mutate(geoid = "ccdph",
+         layer = "region")
+
+# Health district
+standard_age_groups_seer_district_10yr_annualized_all <- standard_age_groups_seer_pop_district_10yr_annualized %>%
+  mutate(stratification = "total") %>% 
+  bind_rows(
+    standard_age_groups_seer_pop_race_district_10yr_annualized %>%
+      rename(stratification = race)
+    ) %>%
+  bind_rows(
+    standard_age_groups_seer_pop_sex_district_10yr_annualized %>%
+      rename(stratification = sex)
+    ) %>% 
+  mutate(geoid = name_district,
+         layer = "region")
+
+# Muni
+standard_age_groups_seer_scc_pop_muni_10yr_annualized_all <- standard_age_groups_seer_scc_pop_muni_10yr_annualized %>% 
+  mutate(layer = "place")
+  
+# ZCTA
+standard_age_groups_seer_scc_pop_zcta_10yr_annualized <- standard_age_groups_seer_scc_pop_zcta_10yr_annualized %>% 
+  mutate(layer = "zip")
+
+# Bind all geographies
+standard_age_groups_seer_10yr_annualized_all <- 
+  standard_age_groups_seer_scc_10yr_annualized_all %>% 
   bind_rows(standard_age_groups_seer_ccdph_10yr_annualized_all) %>%
   bind_rows(standard_age_groups_seer_district_10yr_annualized_all) %>%
-  bind_rows(
-    standard_age_groups_seer_scc_pop_muni_10yr_annualized
-    ) %>%
-  bind_rows(
-    standard_age_groups_seer_scc_pop_zcta_10yr_annualized
-    ) %>%
-  select(-c(dif_2010_20))
+  bind_rows(standard_age_groups_seer_scc_pop_muni_10yr_annualized) %>%
+  bind_rows(standard_age_groups_seer_scc_pop_zcta_10yr_annualized) %>% 
+  select(-c(name_district,
+            dif_2010_20))
 
 # connect inter-census database
 con_inter_census <- dbConnect(odbc::odbc(),
@@ -1115,7 +1131,7 @@ con_inter_census <- dbConnect(odbc::odbc(),
 dbWriteTable(con_inter_census,
          Id(schema = "ref", table = "annualized-decennial-2010-2030-10yr-age-by-race-sex-scc-ccdph-district-muni-zcta"),
          overwrite = TRUE,
-         value = standard_age_groups_seer_scc_10yr_annualized_all,
+         value = standard_age_groups_seer_10yr_annualized_all,
          encoding = "latin1",
          fileEncoding="UTF-8")
 ```
