@@ -631,18 +631,18 @@ pop_2010_ccdph_race_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2010-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(location != "Chicago") %>% 
+  filter(location == "CCDPH") %>%
   select(order_age_10yr,
          name_age_10yr,
          race,
-         population) %>% 
-  group_by(order_age_10yr, 
+         population) %>%
+  group_by(order_age_10yr,
            name_age_10yr,
-           race) %>% 
-  summarize(pop_2010 = sum(population)) %>% 
-  arrange(order_age_10yr) %>% 
-  collect() %>% 
-  as.data.frame() %>% 
+           race) %>%
+  summarize(pop_2010 = sum(population)) %>%
+  arrange(order_age_10yr) %>%
+  collect() %>%
+  as.data.frame() %>%
   mutate(pct_2010 = (pop_2010/sum(pop_2010)))
 
 # population by race, ethnicity 2020
@@ -650,7 +650,7 @@ pop_2020_ccdph_race_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2020-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(location != "Chicago") %>% 
+  filter(location == "CCDPH") %>%
   select(order_age_10yr,
          name_age_10yr,
          race,
