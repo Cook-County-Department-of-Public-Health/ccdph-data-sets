@@ -360,8 +360,7 @@ pop_2010_scc_muni_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2010-single-year-age-sex-race-ethnicity-by-muni")) %>%
-  collect()
-  
+  collect() %>% 
   filter(location != "Chicago") %>% 
   select(order_age_10yr,
          geoid_place,

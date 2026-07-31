@@ -329,3 +329,19 @@ dbWriteTable(con_inter_census,
              encoding     = "latin1",
              fileEncoding = "UTF-8")
 ```
+
+# Population Comparison Between Output Tables
+```{r}
+
+test_1yr_ccdph <- pop_1yr_annualized_all %>% 
+  filter(geoid == "ccdph" & stratification %in% c("NH Asian", "Hispanic", "NH Black", "NH White")) %>% 
+  group_by(stratification, pop_year) %>% 
+  summarize(population = sum(population))
+
+test_10yr_ccdph <- standard_age_groups_seer_pop_race_ccdph_10yr_annualized %>% 
+  filter(race %in% c("NH Asian", "Hispanic", "NH Black", "NH White")) %>% 
+  group_by(stratification = race, pop_year) %>% 
+  summarize(population = sum(population))
+
+```
+
