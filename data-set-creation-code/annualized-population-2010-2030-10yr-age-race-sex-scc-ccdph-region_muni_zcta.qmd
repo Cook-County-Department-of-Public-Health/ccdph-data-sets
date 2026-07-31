@@ -265,7 +265,7 @@ rm(pop_2010_ccdph_total_10yr,
 
 ```
 
-### District
+### Region
 ```{r}
 con_inter_census <- dbConnect(odbc::odbc(),
                         Driver   = "SQL Server",
@@ -273,15 +273,15 @@ con_inter_census <- dbConnect(odbc::odbc(),
                         Database = "inter-census")
 
 # import 2010 CCDPH total population data by year
-pop_2010_district_total_10yr <-
+pop_2010_region_total_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2010-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(name_district != "OOJ") %>% 
-  select(name_district, 
+  filter(name_region != "OOJ") %>% 
+  select(name_region, 
          order_age_10yr,
          population) %>%
-  group_by(name_district,
+  group_by(name_region,
            order_age_10yr) %>% 
   summarize(pop_2010 = sum(population)) %>% 
   arrange(order_age_10yr) %>% 
@@ -290,15 +290,15 @@ pop_2010_district_total_10yr <-
   mutate(pct_2010 = (pop_2010/sum(pop_2010)))
 
 # import 2020 CCDPH total population data by year
-pop_2020_district_total_10yr <-
+pop_2020_region_total_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2020-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(name_district != "OOJ") %>% 
-  select(name_district, 
+  filter(name_region != "OOJ") %>% 
+  select(name_region, 
          order_age_10yr,
          population) %>%
-  group_by(name_district,
+  group_by(name_region,
            order_age_10yr) %>% 
   summarize(pop_2020 = sum(population)) %>% 
   arrange(order_age_10yr) %>% 
@@ -307,13 +307,13 @@ pop_2020_district_total_10yr <-
   mutate(pct_2020 = (pop_2020/sum(pop_2020)))
 
 # Join SCC total population data with standard age groups
-standard_age_groups_seer_pop_district <- standard_age_groups_seer %>% 
-  left_join(pop_2010_district_total_10yr, by=c("order_age_10yr")) %>% 
-   left_join(pop_2020_district_total_10yr, by=c("order_age_10yr","name_district"))
+standard_age_groups_seer_pop_region <- standard_age_groups_seer %>% 
+  left_join(pop_2010_region_total_10yr, by=c("order_age_10yr")) %>% 
+   left_join(pop_2020_region_total_10yr, by=c("order_age_10yr","name_region"))
 
 # Create 10-year standard age group population table (2010, 2020 populations)
-standard_age_groups_seer_pop_district_10yr <- standard_age_groups_seer_pop_district %>% 
-  group_by(name_district, 
+standard_age_groups_seer_pop_region_10yr <- standard_age_groups_seer_pop_region %>% 
+  group_by(name_region, 
            order_age_10yr,
            name_age_10yr) %>% 
   summarise(pop_2010 = sum(pop_2010),
@@ -322,7 +322,7 @@ standard_age_groups_seer_pop_district_10yr <- standard_age_groups_seer_pop_distr
   mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
 
 # Create 10-year standard age group population table (2010-2020 populations)
-atable <- standard_age_groups_seer_pop_district_10yr
+atable <- standard_age_groups_seer_pop_region_10yr
 
 for (ayear in 1:20){
   anewyear = paste0("pop_",as.character(2010 + ayear))
@@ -330,8 +330,8 @@ for (ayear in 1:20){
     mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
 }
 
-assign(value = atable, x = "standard_age_groups_seer_pop_district_10yr_annualized")
-standard_age_groups_seer_pop_district_10yr_annualized <- standard_age_groups_seer_pop_district_10yr_annualized %>% 
+assign(value = atable, x = "standard_age_groups_seer_pop_region_10yr_annualized")
+standard_age_groups_seer_pop_region_10yr_annualized <- standard_age_groups_seer_pop_region_10yr_annualized %>% 
   relocate(pop_2010, .before = pop_2011) %>% 
   relocate(pop_2020, .after = pop_2019) %>% 
   pivot_longer(cols = pop_2010:pop_2030,
@@ -340,9 +340,9 @@ standard_age_groups_seer_pop_district_10yr_annualized <- standard_age_groups_see
   mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_","")))
 
 # remove unneeded tables
-rm(pop_2010_district_total_10yr, 
-   pop_2020_district_total_10yr,
-   standard_age_groups_seer_pop_district_10yr)
+rm(pop_2010_region_total_10yr, 
+   pop_2020_region_total_10yr,
+   standard_age_groups_seer_pop_region_10yr)
 
 ```
 
@@ -360,6 +360,8 @@ pop_2010_scc_muni_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2010-single-year-age-sex-race-ethnicity-by-muni")) %>%
+  collect()
+  
   filter(location != "Chicago") %>% 
   select(order_age_10yr,
          geoid_place,
@@ -703,7 +705,7 @@ rm(pop_2010_ccdph_race_10yr,
 
 ```
 
-### District
+### Region
 ```{r}
 con_inter_census <- dbConnect(odbc::odbc(),
                         Driver   = "SQL Server",
@@ -711,16 +713,16 @@ con_inter_census <- dbConnect(odbc::odbc(),
                         Database = "inter-census")
 
 # import 2010 CCDPH total population data by year
-pop_2010_district_race_10yr <-
+pop_2010_region_race_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2010-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(name_district != "OOJ") %>% 
-  select(name_district,
+  filter(name_region != "OOJ") %>% 
+  select(name_region,
          order_age_10yr,
          race,
          population) %>%
-  group_by(name_district,
+  group_by(name_region,
            order_age_10yr,
            race) %>% 
   summarize(pop_2010 = sum(population)) %>% 
@@ -731,16 +733,16 @@ pop_2010_district_race_10yr <-
   mutate(pct_2010 = (pop_2010/sum(pop_2010)))
 
 # import 2020 CCDPH total population data by year
-pop_2020_district_race_10yr <-
+pop_2020_region_race_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2020-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(name_district != "OOJ") %>% 
-  select(name_district,
+  filter(name_region != "OOJ") %>% 
+  select(name_region,
          order_age_10yr,
          race,
          population) %>%
-  group_by(name_district,
+  group_by(name_region,
            order_age_10yr,
            race) %>% 
   summarize(pop_2020 = sum(population)) %>% 
@@ -751,13 +753,13 @@ pop_2020_district_race_10yr <-
   mutate(pct_2020 = (pop_2020/sum(pop_2020)))
 
 # Join SCC total population data with standard age groups
-standard_age_groups_seer_pop_race_district <- standard_age_groups_seer %>% 
-  left_join(pop_2010_district_race_10yr, by=c("order_age_10yr")) %>% 
-   left_join(pop_2020_district_race_10yr, by=c("order_age_10yr","name_district","race"))
+standard_age_groups_seer_pop_race_region <- standard_age_groups_seer %>% 
+  left_join(pop_2010_region_race_10yr, by=c("order_age_10yr")) %>% 
+   left_join(pop_2020_region_race_10yr, by=c("order_age_10yr","name_region","race"))
 
 # Create 10-year standard age group population table (2010, 2020 populations)
-standard_age_groups_seer_pop_race_district_10yr <- standard_age_groups_seer_pop_race_district %>% 
-  group_by(name_district, 
+standard_age_groups_seer_pop_race_region_10yr <- standard_age_groups_seer_pop_race_region %>% 
+  group_by(name_region, 
            order_age_10yr,
            name_age_10yr,
            race) %>% 
@@ -767,7 +769,7 @@ standard_age_groups_seer_pop_race_district_10yr <- standard_age_groups_seer_pop_
   mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
 
 # Create 10-year standard age group population table (2010-2020 populations)
-atable <- standard_age_groups_seer_pop_race_district_10yr
+atable <- standard_age_groups_seer_pop_race_region_10yr
 
 for (ayear in 1:20){
   anewyear = paste0("pop_",as.character(2010 + ayear))
@@ -775,8 +777,8 @@ for (ayear in 1:20){
     mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
 }
 
-assign(value = atable, x = "standard_age_groups_seer_pop_race_district_10yr_annualized")
-standard_age_groups_seer_pop_race_district_10yr_annualized <- standard_age_groups_seer_pop_race_district_10yr_annualized %>% 
+assign(value = atable, x = "standard_age_groups_seer_pop_race_region_10yr_annualized")
+standard_age_groups_seer_pop_race_region_10yr_annualized <- standard_age_groups_seer_pop_race_region_10yr_annualized %>% 
   relocate(pop_2010, .before = pop_2011) %>% 
   relocate(pop_2020, .after = pop_2019) %>% 
   pivot_longer(cols = pop_2010:pop_2030,
@@ -785,9 +787,9 @@ standard_age_groups_seer_pop_race_district_10yr_annualized <- standard_age_group
   mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_","")))
 
 # remove unneeded tables
-rm(pop_2010_district_race_10yr, 
-   pop_2020_district_race_10yr,
-   standard_age_groups_seer_pop_race_district_10yr)
+rm(pop_2010_region_race_10yr, 
+   pop_2020_region_race_10yr,
+   standard_age_groups_seer_pop_race_region_10yr)
 
 ```
 
@@ -967,7 +969,7 @@ rm(pop_2010_ccdph_sex_10yr,
 
 ```
 
-### District
+### Region
 ```{r}
 con_inter_census <- dbConnect(odbc::odbc(),
                         Driver   = "SQL Server",
@@ -975,16 +977,16 @@ con_inter_census <- dbConnect(odbc::odbc(),
                         Database = "inter-census")
 
 # import 2010 CCDPH total population data by year
-pop_2010_district_sex_10yr <-
+pop_2010_region_sex_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2010-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(name_district != "OOJ") %>% 
-  select(name_district,
+  filter(name_region != "OOJ") %>% 
+  select(name_region,
          order_age_10yr,
          sex,
          population) %>%
-  group_by(name_district,
+  group_by(name_region,
            order_age_10yr,
            sex) %>% 
   summarize(pop_2010 = sum(population)) %>% 
@@ -995,16 +997,16 @@ pop_2010_district_sex_10yr <-
   mutate(pct_2010 = (pop_2010/sum(pop_2010)))
 
 # import 2020 CCDPH total population data by year
-pop_2020_district_sex_10yr <-
+pop_2020_region_sex_10yr <-
   tbl(con_inter_census,
       Id(schema = "ref",
          table = "decennial-2020-single-year-age-sex-race-ethnicity-by-tract")) %>%
-  filter(name_district != "OOJ") %>% 
-  select(name_district,
+  filter(name_region != "OOJ") %>% 
+  select(name_region,
          order_age_10yr,
          sex,
          population) %>%
-  group_by(name_district,
+  group_by(name_region,
            order_age_10yr,
            sex) %>% 
   summarize(pop_2020 = sum(population)) %>% 
@@ -1015,13 +1017,13 @@ pop_2020_district_sex_10yr <-
   mutate(pct_2020 = (pop_2020/sum(pop_2020)))
 
 # Join SCC total population data with standard age groups
-standard_age_groups_seer_pop_sex_district <- standard_age_groups_seer %>% 
-  left_join(pop_2010_district_sex_10yr, by=c("order_age_10yr")) %>% 
-   left_join(pop_2020_district_sex_10yr, by=c("order_age_10yr","name_district","sex"))
+standard_age_groups_seer_pop_sex_region <- standard_age_groups_seer %>% 
+  left_join(pop_2010_region_sex_10yr, by=c("order_age_10yr")) %>% 
+   left_join(pop_2020_region_sex_10yr, by=c("order_age_10yr","name_region","sex"))
 
 # Create 10-year standard age group population table (2010, 2020 populations)
-standard_age_groups_seer_pop_sex_district_10yr <- standard_age_groups_seer_pop_sex_district %>% 
-  group_by(name_district, 
+standard_age_groups_seer_pop_sex_region_10yr <- standard_age_groups_seer_pop_sex_region %>% 
+  group_by(name_region, 
            order_age_10yr,
            name_age_10yr,
            sex) %>% 
@@ -1031,7 +1033,7 @@ standard_age_groups_seer_pop_sex_district_10yr <- standard_age_groups_seer_pop_s
   mutate(dif_2010_20 = (pop_2020-pop_2010)/10)
 
 # Create 10-year standard age group population table (2010-2020 populations)
-atable <- standard_age_groups_seer_pop_sex_district_10yr
+atable <- standard_age_groups_seer_pop_sex_region_10yr
 
 for (ayear in 1:20){
   anewyear = paste0("pop_",as.character(2010 + ayear))
@@ -1039,8 +1041,8 @@ for (ayear in 1:20){
     mutate(!! anewyear := pop_2010 + (dif_2010_20 * ayear))
 }
 
-assign(value = atable, x = "standard_age_groups_seer_pop_sex_district_10yr_annualized")
-standard_age_groups_seer_pop_sex_district_10yr_annualized <- standard_age_groups_seer_pop_sex_district_10yr_annualized %>% 
+assign(value = atable, x = "standard_age_groups_seer_pop_sex_region_10yr_annualized")
+standard_age_groups_seer_pop_sex_region_10yr_annualized <- standard_age_groups_seer_pop_sex_region_10yr_annualized %>% 
   relocate(pop_2010, .before = pop_2011) %>% 
   relocate(pop_2020, .after = pop_2019) %>% 
   pivot_longer(cols = pop_2010:pop_2030,
@@ -1049,9 +1051,9 @@ standard_age_groups_seer_pop_sex_district_10yr_annualized <- standard_age_groups
   mutate(pop_year = as.integer(str_replace(pop_year,pattern="pop_","")))
 
 # remove unneeded tables
-rm(pop_2010_district_sex_10yr, 
-   pop_2020_district_sex_10yr,
-   standard_age_groups_seer_pop_sex_district_10yr)
+rm(pop_2010_region_sex_10yr, 
+   pop_2020_region_sex_10yr,
+   standard_age_groups_seer_pop_sex_region_10yr)
 
 ```
 
@@ -1089,18 +1091,18 @@ standard_age_groups_seer_ccdph_10yr_annualized_all <- standard_age_groups_seer_p
   mutate(geoid = "ccdph",
          layer = "region")
 
-# Health district
-standard_age_groups_seer_district_10yr_annualized_all <- standard_age_groups_seer_pop_district_10yr_annualized %>%
+# Health region
+standard_age_groups_seer_region_10yr_annualized_all <- standard_age_groups_seer_pop_region_10yr_annualized %>%
   mutate(stratification = "total") %>% 
   bind_rows(
-    standard_age_groups_seer_pop_race_district_10yr_annualized %>%
+    standard_age_groups_seer_pop_race_region_10yr_annualized %>%
       rename(stratification = race)
     ) %>%
   bind_rows(
-    standard_age_groups_seer_pop_sex_district_10yr_annualized %>%
+    standard_age_groups_seer_pop_sex_region_10yr_annualized %>%
       rename(stratification = sex)
     ) %>% 
-  mutate(geoid = name_district,
+  mutate(geoid = name_region,
          layer = "region")
 
 # Muni
@@ -1115,10 +1117,10 @@ standard_age_groups_seer_scc_pop_zcta_10yr_annualized_all <- standard_age_groups
 standard_age_groups_seer_10yr_annualized_all <- 
   standard_age_groups_seer_scc_10yr_annualized_all %>% 
   bind_rows(standard_age_groups_seer_ccdph_10yr_annualized_all) %>%
-  bind_rows(standard_age_groups_seer_district_10yr_annualized_all) %>%
+  bind_rows(standard_age_groups_seer_region_10yr_annualized_all) %>%
   bind_rows(standard_age_groups_seer_scc_pop_muni_10yr_annualized_all) %>%
   bind_rows(standard_age_groups_seer_scc_pop_zcta_10yr_annualized_all) %>% 
-  select(-c(name_district,
+  select(-c(name_region,
             dif_2010_20))
 
 # connect inter-census database
@@ -1129,7 +1131,7 @@ con_inter_census <- dbConnect(odbc::odbc(),
   
 # write annualized data to SQL Server
 dbWriteTable(con_inter_census,
-         Id(schema = "ref", table = "annualized-decennial-2010-2030-10yr-age-by-race-sex-scc-ccdph-district-muni-zcta"),
+         Id(schema = "ref", table = "annualized-decennial-2010-2030-10yr-age-by-race-sex-scc-ccdph-region-muni-zcta"),
          overwrite = TRUE,
          value = standard_age_groups_seer_10yr_annualized_all,
          encoding = "latin1",
