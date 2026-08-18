@@ -62,7 +62,9 @@ seer_single_year <-
 
 # Build annualized tables for select stratifications, 2010–2030
 
-Decennial census counts represent population snapshots at ten-year intervals (2010, 2020). Because CCDPH's disease surveillance and rate calculations require annual population denominators, intercensal estimates must be derived through linear interpolation for years 2011 through 2019, and extrapolated forward through 2030 using the same decennial trend. The subsections below define the helper functions, import the shared raw population data, and apply the annualization process across the stratifications required for CCDPH reporting — total, sex, and race/ethnicity — for three geographic levels: Suburban Cook County (SCC), the CCDPH service area, and individual CCDPH health regions.
+Decennial census counts represent population snapshots at ten-year intervals (2010, 2020). Because CCDPH's disease surveillance and rate calculations require annual population denominators, intercensal estimates must be derived through linear interpolation for years 2011 through 2019, and extrapolated forward through 2030 using the same decennial trend. The subsections below define the helper functions, import the shared raw population data, and apply the annualization process across the stratifications required for CCDPH reporting for three geographic levels: Suburban Cook County (SCC), the CCDPH service area, and individual CCDPH health regions.
+
+Each output table crosses race/ethnicity with sex so that any combination can be filtered directly: the `stratification` column carries `"total"` (all race/ethnicity groups combined) alongside each race/ethnicity category, and a separate `sex` column carries `"total"` (both sexes combined) alongside `"male"` and `"female"`. The full population for a given age/year/geography is therefore the row where `stratification == "total"` and `sex == "total"`.
 
 ## Annualize function
 
@@ -140,47 +142,62 @@ rm(pop_2010_raw, pop_2020_raw)
 
 ## Single-year age groups stratified by sex, race, and geography
 
-This subsection produces annualized population estimates at single-year age resolution for use as denominators in age-specific rate calculations. `fx_build_1yr_annualized` accepts the joined population data and an optional vector of geography column names (`geo_vars`), then produces total, sex-stratified, and race-stratified estimates by calling `fx_annualize` on each grouping. The final object `pop_1yr_annualized_all` contains long-format estimates for SCC, CCDPH, and each CCDPH health region for all years 2010–2030.
+This subsection produces annualized population estimates at single-year age resolution for use as denominators in age-specific rate calculations. `fx_build_1yr_annualized` accepts the joined population data and an optional vector of geography column names (`geo_vars`), then produces sex-by-race/ethnicity cross-stratified estimates by calling `fx_annualize` on each grouping: total population, total population by sex, each race/ethnicity group summed across sex, and each race/ethnicity group by sex. The final object `pop_1yr_annualized_all` contains long-format estimates for SCC, CCDPH, and each CCDPH health region for all years 2010–2030, with `stratification` (`"total"` plus each race/ethnicity category) and `sex` (`"total"`, `"male"`, `"female"`) columns that can be combined to select any slice of the population.
 
 ```{r}
-# fx_build_1yr_annualized: summarises and annualizes by single-year age group
+# fx_build_1yr_annualized: summarises and annualizes by single-year age group,
+# crossing race/ethnicity (stratification) with sex
 # geo_vars: NULL for single-area geographies (SCC, CCDPH);
 #           "name_region" to produce one row per region per age/year
 fx_build_1yr_annualized <- function(df, geo_vars = NULL) {
 
   grp_base <- c(geo_vars, "order_age_1yr", "name_age_1yr")
 
-  # total population across all sex and race groups
-  total <- df %>%
+  # total population, across both race/ethnicity and sex
+  total_total <- df %>%
     group_by(across(all_of(grp_base))) %>%
     summarise(pop_2010 = sum(pop_2010),
               pop_2020 = sum(pop_2020),
               pct_seer = sum(pct_seer),
               .groups  = "drop") %>%
     fx_annualize() %>%
-    mutate(stratification = "total")
+    mutate(stratification = "total",
+           sex            = "total")
 
-  # population stratified by sex
-  by_sex <- df %>%
+  # total population (all race/ethnicity groups combined), stratified by sex
+  total_by_sex <- df %>%
     group_by(across(all_of(c(grp_base, "sex")))) %>%
     summarise(pop_2010 = sum(pop_2010),
               pop_2020 = sum(pop_2020),
               pct_seer = sum(pct_seer),
               .groups  = "drop") %>%
     fx_annualize() %>%
-    rename(stratification = sex)
+    mutate(stratification = "total",
+           sex            = str_to_lower(sex))
 
-  # population stratified by race/ethnicity
-  by_race <- df %>%
+  # population stratified by race/ethnicity, combined across sex
+  race_total_sex <- df %>%
     group_by(across(all_of(c(grp_base, "race")))) %>%
     summarise(pop_2010 = sum(pop_2010),
               pop_2020 = sum(pop_2020),
               pct_seer = sum(pct_seer),
               .groups  = "drop") %>%
     fx_annualize() %>%
-    rename(stratification = race)
+    rename(stratification = race) %>%
+    mutate(sex = "total")
 
-  bind_rows(total, by_sex, by_race)
+  # population stratified by race/ethnicity and sex
+  race_by_sex <- df %>%
+    group_by(across(all_of(c(grp_base, "race", "sex")))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    rename(stratification = race) %>%
+    mutate(sex = str_to_lower(sex))
+
+  bind_rows(total_total, total_by_sex, race_total_sex, race_by_sex)
 }
 
 # build and combine annualized estimates for all three geographic levels
@@ -209,7 +226,7 @@ pop_1yr_annualized_all <- bind_rows(
 
 ## Adult age groups stratified by sex, race, and geography
 
-This subsection produces annualized population estimates for epidemiologically meaningful adult age groupings — 18 and older, 18–34, 35 and older, 35–64, and 65 and older — which serve as denominators for adult-focused health indicators including chronic disease, injury, and maternal health outcomes. `fx_build_annualized` applies a `cross_join` with a predefined age group tibble so that single-year counts can be aggregated into each broad band; because the age bands overlap (e.g., a 40-year-old contributes to both "35 and older" and "35–64"), this approach correctly assigns each person-year to all applicable groups. The resulting object `pop_adult_annualized_all` carries total, sex-stratified, and race-stratified estimates at the SCC, CCDPH, and health region levels.
+This subsection produces annualized population estimates for epidemiologically meaningful adult age groupings — 18 and older, 18–34, 35 and older, 35–64, and 65 and older — which serve as denominators for adult-focused health indicators including chronic disease, injury, and maternal health outcomes. `fx_build_annualized` applies a `cross_join` with a predefined age group tibble so that single-year counts can be aggregated into each broad band; because the age bands overlap (e.g., a 40-year-old contributes to both "35 and older" and "35–64"), this approach correctly assigns each person-year to all applicable groups. The resulting object `pop_adult_annualized_all` carries sex-by-race/ethnicity cross-stratified estimates at the SCC, CCDPH, and health region levels, with `stratification` (`"total"` plus each race/ethnicity category) and `sex` (`"total"`, `"male"`, `"female"`) columns that can be combined to select any slice of the population.
 
 ```{r}
 # define overlapping adult age groups; cross_join ensures each single year
@@ -227,7 +244,8 @@ age_groups_broad <- tibble(
 )
 
 # fx_build_annualized: cross-joins single-year data with broad age group
-# definitions, then summarises and annualizes by age group
+# definitions, then summarises and annualizes by age group, crossing
+# race/ethnicity (stratification) with sex
 # geo_vars: NULL for single-area geographies; "name_region" for regions
 fx_build_annualized <- function(df, geo_vars = NULL) {
 
@@ -239,37 +257,51 @@ fx_build_annualized <- function(df, geo_vars = NULL) {
 
   grp_base <- c(geo_vars, "name_age_group")
 
-  # total population across all sex and race groups
-  total <- df_broad %>%
+  # total population, across both race/ethnicity and sex
+  total_total <- df_broad %>%
     group_by(across(all_of(grp_base))) %>%
     summarise(pop_2010 = sum(pop_2010),
               pop_2020 = sum(pop_2020),
               pct_seer = sum(pct_seer),
               .groups  = "drop") %>%
     fx_annualize() %>%
-    mutate(stratification = "total")
+    mutate(stratification = "total",
+           sex            = "total")
 
-  # population stratified by sex
-  by_sex <- df_broad %>%
+  # total population (all race/ethnicity groups combined), stratified by sex
+  total_by_sex <- df_broad %>%
     group_by(across(all_of(c(grp_base, "sex")))) %>%
     summarise(pop_2010 = sum(pop_2010),
               pop_2020 = sum(pop_2020),
               pct_seer = sum(pct_seer),
               .groups  = "drop") %>%
     fx_annualize() %>%
-    rename(stratification = sex)
+    mutate(stratification = "total",
+           sex            = str_to_lower(sex))
 
-  # population stratified by race/ethnicity
-  by_race <- df_broad %>%
+  # population stratified by race/ethnicity, combined across sex
+  race_total_sex <- df_broad %>%
     group_by(across(all_of(c(grp_base, "race")))) %>%
     summarise(pop_2010 = sum(pop_2010),
               pop_2020 = sum(pop_2020),
               pct_seer = sum(pct_seer),
               .groups  = "drop") %>%
     fx_annualize() %>%
-    rename(stratification = race)
+    rename(stratification = race) %>%
+    mutate(sex = "total")
 
-  bind_rows(total, by_sex, by_race)
+  # population stratified by race/ethnicity and sex
+  race_by_sex <- df_broad %>%
+    group_by(across(all_of(c(grp_base, "race", "sex")))) %>%
+    summarise(pop_2010 = sum(pop_2010),
+              pop_2020 = sum(pop_2020),
+              pct_seer = sum(pct_seer),
+              .groups  = "drop") %>%
+    fx_annualize() %>%
+    rename(stratification = race) %>%
+    mutate(sex = str_to_lower(sex))
+
+  bind_rows(total_total, total_by_sex, race_total_sex, race_by_sex)
 }
 
 # build and combine annualized estimates for all three geographic levels
@@ -333,9 +365,10 @@ dbWriteTable(con_inter_census,
 # Population Comparison Between Output Tables
 ```{r}
 
-test_1yr_ccdph <- pop_1yr_annualized_all %>% 
-  filter(geoid == "ccdph" & stratification %in% c("NH Asian", "Hispanic", "NH Black", "NH White")) %>% 
-  group_by(stratification, pop_year) %>% 
+test_1yr_ccdph <- pop_1yr_annualized_all %>%
+  filter(geoid == "ccdph" & sex == "total" &
+           stratification %in% c("NH Asian", "Hispanic", "NH Black", "NH White")) %>%
+  group_by(stratification, pop_year) %>%
   summarize(population = sum(population))
 
 test_10yr_ccdph <- standard_age_groups_seer_pop_race_ccdph_10yr_annualized %>% 
