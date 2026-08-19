@@ -1,250 +1,250 @@
-zip_code,zcta,zcta_2010_pop,zcta_2010_pop_cook,percent_pop,partial_pop,primary_city,percent_addresses,district,nssp_region,notes
-60004,60004,50582,50582,100,FALSE,Arlington Heights,100,North,IL_Cook,NA
-60005,60005,29308,29308,100,FALSE,Arlington Heights,100,North,IL_Cook,NA
-60007,60007,33820,33820,100,FALSE,Elk Grove Village,96.73,North,IL_Cook,borders cross into O'Hare and DuPage but all residents in Cook per census
-60008,60008,22717,22717,100,FALSE,Rolling Meadows,100,North,IL_Cook,NA
-60010,60010,44095,19530,44.29,TRUE,Barrington,36.76,North,IL_Cook,NA
-60015,60015,26800,172,0.64,TRUE,Deerfield,6.62,North,IL_Lake,NA
-60016,60016,59690,59690,100,FALSE,Des Plaines,100,North,IL_Cook,NA
-60018,60018,30099,30099,100,FALSE,Des Plaines,100,North,IL_Cook,NA
-60022,60022,8153,8153,100,FALSE,Glencoe,100,North,IL_Cook,NA
-60025,60025,39105,39105,100,FALSE,Glenview,100,North,IL_Cook,NA
-60026,60026,13335,13335,100,FALSE,Glenview,100,North,IL_Cook,NA
-60029,60029,482,482,100,FALSE,Golf,100,North,IL_Cook,PO Boxes
-60043,60043,2513,2513,100,FALSE,Kenilworth,100,North,IL_Cook,NA
-60053,60053,23260,23260,100,FALSE,Morton Grove,100,North,IL_Cook,NA
-60056,60056,55219,55219,100,FALSE,Mount Prospect,100,North,IL_Cook,NA
-60062,60062,39936,39936,100,FALSE,Northbrook,100,North,IL_Cook,NA
-60067,60067,38585,38585,100,FALSE,Palatine,100,North,IL_Cook,NA
-60068,60068,37475,37475,100,FALSE,Park Ridge,100,North,IL_Cook,NA
-60070,60070,16001,16001,100,FALSE,Prospect Heights,100,North,IL_Cook,NA
-60074,60074,38985,38803,99.53,TRUE,Palatine,98.82,North,IL_Cook,NA
-60076,60076,33415,33415,100,FALSE,Skokie,100,OOJ,IL_Cook,NA
-60077,60077,26825,26825,100,FALSE,Skokie,100,OOJ,IL_Cook,NA
-60089,60089,41533,13643,32.85,TRUE,Buffalo Grove,39.35,North,IL_Lake,NA
-60090,60090,37633,37633,100,FALSE,Wheeling,99.82,North,IL_Cook,NA
-60091,60091,27020,27020,100,FALSE,Wilmette,100,North,IL_Cook,NA
-60093,60093,19570,19570,100,FALSE,Winnetka,100,North,IL_Cook,NA
-60103,60103,41928,16884,40.27,TRUE,Bartlett,49.93,North,IL_DuPage,NA
-60104,60104,19038,19038,100,FALSE,Bellwood,100,West,IL_Cook,NA
-60107,60107,39927,39927,100,FALSE,Streamwood,100,North,IL_Cook,NA
-60120,60120,50955,24997,49.06,TRUE,Elgin,34.99,North,IL_Cook,NA
-60126,60126,46371,333,0.72,TRUE,Elmhurst,0.22,West,IL_DuPage,NA
-60130,60130,14167,14167,100,FALSE,Forest Park,100,West,IL_Cook,NA
-60131,60131,18097,18097,100,FALSE,Franklin Park,100,West,IL_Cook,NA
-60133,60133,38103,20636,54.16,TRUE,Hanover Park,60.22,North,IL_DuPage,NA
-60141,60141,224,224,100,FALSE,Hines,100,West,IL_Cook,PO Boxes
-60153,60153,24106,24106,100,FALSE,Maywood,100,West,IL_Cook,NA
-60154,60154,16773,16773,100,FALSE,Westchester,100,West,IL_Cook,NA
-60155,60155,7927,7927,100,FALSE,Broadview,100,West,IL_Cook,NA
-60160,60160,25432,25432,100,FALSE,Melrose Park,100,West,IL_Cook,NA
-60162,60162,8111,8111,100,FALSE,Hillside,100,West,IL_Cook,NA
-60163,60163,5209,5209,100,FALSE,Berkeley,100,West,IL_Cook,NA
-60164,60164,22048,22048,100,FALSE,Melrose Park,100,West,IL_Cook,NA
-60165,60165,4946,4946,100,FALSE,Stone Park,100,West,IL_Cook,NA
-60169,60169,33847,33847,100,FALSE,Hoffman Estates,100,North,IL_Cook,NA
-60171,60171,10246,10246,100,FALSE,River Grove,100,West,IL_Cook,NA
-60172,60172,24537,4006,16.33,TRUE,Roselle,16.52,North,IL_DuPage,NA
-60173,60173,12217,12217,100,FALSE,Schaumburg,100,North,IL_Cook,NA
-60176,60176,11795,11795,100,FALSE,Schiller Park,100,West,IL_Cook,NA
-60192,60192,16343,16343,100,FALSE,Hoffman Estates,99.59,North,IL_Cook,NA
-60193,60193,39188,39188,100,FALSE,Schaumburg,100,North,IL_Cook,NA
-60194,60194,19777,19777,100,FALSE,Schaumburg,100,North,IL_Cook,NA
-60195,60195,4769,4769,100,FALSE,Schaumburg,100,North,IL_Cook,NA
-60201,60201,43125,43125,100,FALSE,Evanston,100,OOJ,IL_Cook,NA
-60202,60202,31361,31361,100,FALSE,Evanston,100,OOJ,IL_Cook,NA
-60203,60203,4523,4523,100,FALSE,Evanston,100,OOJ,IL_Cook,NA
-60301,60301,2539,2539,100,FALSE,Oak Park,100,OOJ,IL_Cook,NA
-60302,60302,32108,32108,100,FALSE,Oak Park,100,OOJ,IL_Cook,NA
-60304,60304,17231,17231,100,FALSE,Oak Park,100,OOJ,IL_Cook,NA
-60305,60305,11172,11172,100,FALSE,River Forest,100,West,IL_Cook,NA
-60402,60402,63448,63448,100,FALSE,Berwyn,100,West,IL_Cook,part in Berwyn and part in Stickney Township
-60406,60406,25460,25460,100,FALSE,Blue Island,100,Southwest,IL_Cook,NA
-60409,60409,37186,37186,100,FALSE,Calumet City,100,South,IL_Cook,NA
-60411,60411,58136,58136,100,FALSE,Chicago Heights,100,South,IL_Cook,NA
-60415,60415,14139,14139,100,FALSE,Chicago Ridge,100,Southwest,IL_Cook,NA
-60419,60419,22788,22788,100,FALSE,Dolton,100,South,IL_Cook,NA
-60422,60422,9403,9403,100,FALSE,Flossmoor,100,South,IL_Cook,NA
-60423,60423,30423,23,0.08,TRUE,Frankfort,0.43,South,IL_Will,NA
-60425,60425,9117,9117,100,FALSE,Glenwood,100,South,IL_Cook,NA
-60426,60426,29594,29594,100,FALSE,Harvey,100,South,IL_Cook,NA
-60428,60428,12203,12203,100,FALSE,Markham,100,South,IL_Cook,NA
-60429,60429,15630,15630,100,FALSE,Hazel Crest,100,South,IL_Cook,NA
-60430,60430,20094,20094,100,FALSE,Homewood,100,South,IL_Cook,NA
-60438,60438,28884,28884,100,FALSE,Lansing,100,South,IL_Cook,NA
-60439,60439,22919,20913,91.25,TRUE,Lemont,56.06,Southwest,IL_Cook,NA
-60443,60443,21145,21145,100,FALSE,Matteson,100,South,IL_Cook,NA
-60445,60445,26057,26057,100,FALSE,Midlothian,100,South,IL_Cook,NA
-60449,60449,9217,NA,NA,NA,Monee,0.53,OOJ,IL_Will,NA
-60452,60452,27969,27969,100,FALSE,Oak Forest,100,South,IL_Cook,NA
-60453,60453,56855,56855,100,FALSE,Oak Lawn,100,Southwest,IL_Cook,NA
-60455,60455,16446,16446,100,FALSE,Bridgeview,100,Southwest,IL_Cook,NA
-60456,60456,4349,4349,100,FALSE,Hometown,100,Southwest,IL_Cook,NA
-60457,60457,14049,14049,100,FALSE,Hickory Hills,100,Southwest,IL_Cook,NA
-60458,60458,14428,14428,100,FALSE,Justice,100,Southwest,IL_Cook,NA
-60459,60459,28929,28929,100,FALSE,Burbank,100,OOJ,IL_Cook,NA
-60461,60461,4836,4836,100,FALSE,Olympia Fields,100,South,IL_Cook,NA
-60462,60462,38723,38723,100,FALSE,Orland Park,100,Southwest,IL_Cook,NA
-60463,60463,14671,14671,100,FALSE,Palos Heights,100,Southwest,IL_Cook,NA
-60464,60464,9620,9620,100,FALSE,Palos Park,100,Southwest,IL_Cook,NA
-60465,60465,17495,17495,100,FALSE,Palos Hills,100,Southwest,IL_Cook,NA
-60466,60466,22115,18630,84.24,TRUE,Park Forest,83.54,South,IL_Cook,NA
-60467,60467,26046,23733,91.12,TRUE,Orland Park,88.09,Southwest,IL_Cook,NA
-60469,60469,5930,5930,100,FALSE,Posen,100,South,IL_Cook,NA
-60471,60471,14101,14036,99.54,TRUE,Richton Park,99.27,South,IL_Cook,NA
-60472,60472,5390,5390,100,FALSE,Robbins,100,South,IL_Cook,NA
-60473,60473,22439,22439,100,FALSE,South Holland,100,South,IL_Cook,NA
-60475,60475,9870,4265,43.21,TRUE,Steger,41.22,South,IL_Cook,NA
-60476,60476,2391,2391,100,FALSE,Thornton,100,South,IL_Cook,NA
-60477,60477,38161,38158,99.99,TRUE,Tinley Park,97.9,South,IL_Cook,NA
-60478,60478,16833,16833,100,FALSE,Country Club Hills,100,South,IL_Cook,NA
-60480,60480,5246,5246,100,FALSE,Willow Springs,100,Southwest,IL_Cook,NA
-60482,60482,11063,11063,100,FALSE,Worth,100,Southwest,IL_Cook,NA
-60487,60487,26928,19307,71.7,TRUE,Tinley Park,80.14,South,IL_Cook,NA
-60501,60501,11626,11626,100,FALSE,Summit Argo,100,Southwest,IL_Cook,NA
-60513,60513,19047,19047,100,FALSE,Brookfield,100,West,IL_Cook,NA
-60521,60521,17597,2227,12.66,TRUE,Hinsdale,7.37,West,IL_DuPage,NA
-60523,60523,9890,NA,NA,NA,Oak Brook,0.13,West,IL_DuPage,NA
-60525,60525,31168,31168,100,FALSE,La Grange,100,West,IL_Cook,NA
-60526,60526,13576,13576,100,FALSE,La Grange Park,100,West,IL_Cook,NA
-60527,60527,27486,4035,14.68,TRUE,Willowbrook,11.3,OOJ,IL_DuPage,NA
-60534,60534,10649,10649,100,FALSE,Lyons,100,West,IL_Cook,NA
-60546,60546,15668,15668,100,FALSE,Riverside,100,West,IL_Cook,NA
-60558,60558,12960,12960,100,FALSE,Western Springs,100,West,IL_Cook,NA
-60601,60601,11110,11110,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60602,60602,1204,1204,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60603,60603,493,493,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60604,60604,570,570,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60605,60605,24668,24668,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60606,60606,2308,2308,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60607,60607,23897,23897,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60608,60608,82739,82739,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60609,60609,64906,64906,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60610,60610,37726,37726,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60611,60611,28718,28718,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60612,60612,33472,33472,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60613,60613,48281,48281,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60614,60614,66617,66617,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60615,60615,40603,40603,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60616,60616,48433,48433,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60617,60617,84155,84155,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60618,60618,92084,92084,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60619,60619,63825,63825,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60620,60620,72216,72216,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60621,60621,35912,35912,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60622,60622,52548,52548,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60623,60623,92108,92108,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60624,60624,38105,38105,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60625,60625,78651,78651,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60626,60626,50139,50139,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60628,60628,72202,72202,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60629,60629,113916,113916,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60630,60630,54093,54093,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60631,60631,28641,28641,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60632,60632,91326,91326,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60633,60633,12927,12927,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60634,60634,74298,74298,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60636,60636,40916,40916,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60637,60637,49503,49503,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60638,60638,55026,55026,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60639,60639,90407,90407,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60640,60640,65790,65790,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60641,60641,71663,71663,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60642,60642,18480,18480,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60643,60643,49952,49952,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60644,60644,48648,48648,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60645,60645,45274,45274,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60646,60646,27177,27177,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60647,60647,87291,87291,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60649,60649,46650,46650,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60651,60651,64267,64267,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60652,60652,40959,40959,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60653,60653,29908,29908,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60654,60654,14875,14875,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60655,60655,28550,28550,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60656,60656,27613,27613,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60657,60657,65996,65996,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60659,60659,38104,38104,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60660,60660,42752,42752,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60661,60661,7792,7792,100,FALSE,Chicago,100,OOJ,IL_Chicago,NA
-60706,60706,23134,23134,100,FALSE,Harwood Heights,100,West,IL_Cook,NA
-60707,60707,42920,42920,100,FALSE,Elmwood Park,100,West,IL_Cook,NA
-60712,60712,12590,12590,100,FALSE,Lincolnwood,100,North,IL_Cook,NA
-60714,60714,29931,29931,100,FALSE,Niles,100,North,IL_Cook,NA
-60803,60803,22285,22285,100,FALSE,Alsip,100,Southwest,IL_Cook,NA
-60804,60804,84573,84573,100,FALSE,Cicero,100,West,IL_Cook,NA
-60805,60805,19852,19852,100,FALSE,Evergreen Park,100,Southwest,IL_Cook,NA
-60827,60827,27946,27946,100,FALSE,Riverdale,100,South,IL_Cook,NA
-60006,NA,NA,NA,NA,NA,Arlington Heights,100,North,IL_Cook,PO Boxes
-60009,NA,NA,NA,NA,NA,Elk Grove Village,100,North,IL_Cook,PO Boxes
-60017,NA,NA,NA,NA,NA,Des Plaines,100,North,IL_Cook,PO Boxes
-60019,NA,NA,NA,NA,NA,Des Plaines,100,North,IL_Cook,specific company or organization
-60038,NA,NA,NA,NA,NA,Palatine,100,North,IL_Cook,specific company or organization (Grainger)
-60055,NA,NA,NA,NA,NA,Palatine,100,North,IL_Cook,specific company or organization
-60065,NA,NA,NA,NA,NA,Northbrook,100,North,IL_Cook,PO Boxes
-60078,NA,NA,NA,NA,NA,Palatine,100,North,IL_Cook,PO Boxes
-60082,NA,NA,NA,NA,NA,Techny,100,North,IL_Cook,PO Boxes
-60094,NA,NA,NA,NA,NA,Palatine,100,North,IL_Cook,PO Boxes
-60095,NA,NA,NA,NA,NA,Palatine,100,North,IL_Cook,PO Boxes
-60159,NA,NA,NA,NA,NA,Schaumburg,100,North,IL_Cook,PO Boxes
-60161,NA,NA,NA,NA,NA,Melrose Park,100,West,IL_Cook,PO Boxes
-60168,NA,NA,NA,NA,NA,Schaumburg,100,North,IL_Cook,PO Boxes
-60179,NA,NA,NA,NA,NA,Hoffman Estates,100,North,IL_Cook,specific company or organization (Sears Roebuck)
-60196,NA,NA,NA,NA,NA,Schaumburg,100,North,IL_Cook,specific company or organization (Zurich Insurance North America)
-60204,NA,NA,NA,NA,NA,Evanston,100,OOJ,IL_Cook,PO Boxes
-60208,NA,NA,NA,NA,NA,Evanston,100,OOJ,IL_Cook,specific company or organization (Northwestern University)
-60303,NA,NA,NA,NA,NA,Oak Park,100,OOJ,IL_Cook,PO Boxes
-60412,NA,NA,NA,NA,NA,Chicago Heights,100,South,IL_Cook,PO Boxes
-60418,NA,NA,NA,NA,NA,Crestwood,100,Southwest,NA,new zip created in 2017
-60454,NA,NA,NA,NA,NA,Oak Lawn,100,Southwest,IL_Cook,PO Boxes
-60499,NA,NA,NA,NA,NA,Bedford Park,100,Southwest,IL_Cook,PO Boxes
-60664,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,PO Boxes
-60666,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,PO Boxes
-60668,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60669,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60670,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60673,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60674,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60675,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60677,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60678,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60680,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,PO Boxes
-60681,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,PO Boxes
-60682,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60684,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60685,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60686,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60687,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60688,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60689,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60690,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,PO Boxes
-60691,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,PO Boxes
-60693,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60694,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60695,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60696,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60697,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,specific company or organization
-60699,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Chicago,NA
-60701,NA,NA,NA,NA,NA,Chicago,100,OOJ,IL_Cook,incorrect NSSP region assignment
-60663,NA,NA,NA,NA,NA,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
-60665,NA,NA,NA,NA,NA,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
-60667,NA,NA,NA,NA,NA,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
-60671,NA,NA,NA,NA,NA,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
-60679,NA,NA,NA,NA,NA,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
-60683,NA,NA,NA,NA,NA,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
-60011,NA,NA,NA,NA,NA,Barrington,NA,North,IL_Cook,PO Boxes
-60209,NA,NA,NA,NA,NA,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
-60290,NA,NA,NA,NA,NA,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
-60398,NA,NA,NA,NA,NA,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
-60570,NA,NA,NA,NA,NA,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
-60035,60035,29763,0,0,NA,Highland Park,0,OOJ,IL_Lake,from BOT list but no addresses in Cook per melissa data
-60047,60047,41669,0,0,NA,Lake Zurich,0,OOJ,IL_Lake,from BOT list but no addresses in Cook per melissa data
-60106,60106,20309,0,0,NA,Bensenville,0,OOJ,IL_DuPage,from BOT list but no addresses in Cook per melissa data
-60110,60110,38557,0,0,NA,Carpentersville,0,OOJ,IL_Kane,from BOT list but no addresses in Cook per melissa data
-60118,60118,15851,0,0,NA,Dundee,0,OOJ,IL_Kane,from BOT list but no addresses in Cook per melissa data
-60143,60143,10360,0,0,NA,Itasca,0,OOJ,IL_DuPage,from BOT list but no addresses in Cook per melissa data
-60191,60191,14310,0,0,NA,Wood Dale,0,OOJ,IL_DuPage,from BOT list but no addresses in Cook per melissa data
-60417,60417,15547,0,0,NA,Crete,0,OOJ,IL_Will,from BOT list but no addresses in Cook per melissa data
-60441,60441,36869,0,0,NA,Lockport,0,OOJ,IL_Will,from BOT list but no addresses in Cook per melissa data
-60448,60448,24423,0,0,NA,Mokena,0,OOJ,IL_Will,from BOT list but no addresses in Cook per melissa data
-60491,60491,22743,0,0,NA,Homer Glen,0,OOJ,IL_Will,from BOT list but no addresses in Cook per melissa data
+zip_code,primary_city,district,percent_addresses,nssp_region,notes
+60004,Arlington Heights,North,100,IL_Cook,NA
+60005,Arlington Heights,North,100,IL_Cook,NA
+60006,Arlington Heights,North,100,IL_Cook,PO Boxes
+60007,Elk Grove Village,North,96.7,IL_Cook,borders cross into O'Hare and DuPage but all residents in Cook per census
+60008,Rolling Meadows,North,100,IL_Cook,NA
+60009,Elk Grove Village,North,100,IL_Cook,PO Boxes
+60010,Barrington,North,36.75,IL_Cook,NA
+60015,Deerfield,North,6.6,IL_Lake,NA
+60016,Des Plaines,North,100,IL_Cook,NA
+60017,Des Plaines,North,100,IL_Cook,PO Boxes
+60018,Des Plaines,North,100,IL_Cook,NA
+60019,Des Plaines,North,100,IL_Cook,specific company or organization
+60022,Glencoe,North,100,IL_Cook,NA
+60025,Glenview,North,100,IL_Cook,NA
+60026,Glenview,North,100,IL_Cook,NA
+60029,Golf,North,100,IL_Cook,PO Boxes
+60038,Palatine,North,100,IL_Cook,specific company or organization (Grainger)
+60043,Kenilworth,North,100,IL_Cook,NA
+60053,Morton Grove,North,100,IL_Cook,NA
+60055,Palatine,North,100,IL_Cook,specific company or organization
+60056,Mount Prospect,North,100,IL_Cook,NA
+60062,Northbrook,North,100,IL_Cook,NA
+60065,Northbrook,North,100,IL_Cook,PO Boxes
+60067,Palatine,North,100,IL_Cook,NA
+60068,Park Ridge,North,100,IL_Cook,NA
+60070,Prospect Heights,North,100,IL_Cook,NA
+60074,Palatine,North,98.82,IL_Cook,NA
+60076,Skokie,OOJ,100,IL_Cook,NA
+60077,Skokie,OOJ,100,IL_Cook,NA
+60078,Palatine,North,100,IL_Cook,PO Boxes
+60082,Techny,North,100,IL_Cook,PO Boxes
+60089,Buffalo Grove,North,39.26,IL_Lake,NA
+60090,Wheeling,North,99.82,IL_Cook,NA
+60091,Wilmette,North,100,IL_Cook,NA
+60093,Winnetka,North,100,IL_Cook,NA
+60094,Palatine,North,100,IL_Cook,PO Boxes
+60095,Palatine,North,100,IL_Cook,PO Boxes
+60103,Bartlett,North,49.79,IL_DuPage,NA
+60104,Bellwood,West,100,IL_Cook,NA
+60107,Streamwood,North,100,IL_Cook,NA
+60120,Elgin,North,35,IL_Cook,NA
+60126,Elmhurst,OOJ,0.22,IL_DuPage,NA
+60130,Forest Park,West,100,IL_Cook,NA
+60131,Franklin Park,West,100,IL_Cook,NA
+60133,Hanover Park,North,60.24,IL_DuPage,NA
+60141,Hines,West,100,IL_Cook,PO Boxes
+60153,Maywood,West,100,IL_Cook,NA
+60154,Westchester,West,100,IL_Cook,NA
+60155,Broadview,West,100,IL_Cook,NA
+60159,Schaumburg,North,100,IL_Cook,PO Boxes
+60160,Melrose Park,West,100,IL_Cook,NA
+60161,Melrose Park,West,100,IL_Cook,PO Boxes
+60162,Hillside,West,100,IL_Cook,NA
+60163,Berkeley,West,100,IL_Cook,NA
+60164,Melrose Park,West,100,IL_Cook,NA
+60165,Stone Park,West,100,IL_Cook,NA
+60168,Schaumburg,North,100,IL_Cook,PO Boxes
+60169,Hoffman Estates,North,100,IL_Cook,NA
+60171,River Grove,West,100,IL_Cook,NA
+60172,Roselle,North,16.46,IL_DuPage,NA
+60173,Schaumburg,North,100,IL_Cook,NA
+60176,Schiller Park,West,100,IL_Cook,NA
+60179,Hoffman Estates,North,100,IL_Cook,specific company or organization (Sears Roebuck)
+60192,Hoffman Estates,North,99.59,IL_Cook,NA
+60193,Schaumburg,North,100,IL_Cook,NA
+60194,Schaumburg,North,100,IL_Cook,NA
+60195,Schaumburg,North,100,IL_Cook,NA
+60196,Schaumburg,North,100,IL_Cook,specific company or organization (Zurich Insurance North America)
+60201,Evanston,OOJ,100,IL_Cook,NA
+60202,Evanston,OOJ,100,IL_Cook,NA
+60203,Evanston,OOJ,100,IL_Cook,NA
+60204,Evanston,OOJ,100,IL_Cook,PO Boxes
+60208,Evanston,OOJ,100,IL_Cook,specific company or organization (Northwestern University)
+60301,Oak Park,OOJ,100,IL_Cook,NA
+60302,Oak Park,OOJ,100,IL_Cook,NA
+60303,Oak Park,OOJ,100,IL_Cook,PO Boxes
+60304,Oak Park,OOJ,100,IL_Cook,NA
+60305,River Forest,West,100,IL_Cook,NA
+60402,Berwyn,West,100,IL_Cook,part in Berwyn and part in Stickney Township
+60406,Blue Island,Southwest,100,IL_Cook,NA
+60409,Calumet City,South,100,IL_Cook,NA
+60411,Chicago Heights,South,100,IL_Cook,NA
+60412,Chicago Heights,South,100,IL_Cook,PO Boxes
+60415,Chicago Ridge,Southwest,100,IL_Cook,NA
+60418,Crestwood,Southwest,100,NA,new zip created in 2017
+60419,Dolton,South,100,IL_Cook,NA
+60422,Flossmoor,South,100,IL_Cook,NA
+60423,Frankfort,OOJ,0.43,IL_Will,NA
+60425,Glenwood,South,100,IL_Cook,NA
+60426,Harvey,South,100,IL_Cook,NA
+60428,Markham,South,100,IL_Cook,NA
+60429,Hazel Crest,South,100,IL_Cook,NA
+60430,Homewood,South,100,IL_Cook,NA
+60438,Lansing,South,100,IL_Cook,NA
+60439,Lemont,Southwest,57.12,IL_Cook,NA
+60443,Matteson,South,100,IL_Cook,NA
+60445,Midlothian,South,100,IL_Cook,NA
+60449,Monee,OOJ,0.53,IL_Will,NA
+60452,Oak Forest,South,100,IL_Cook,NA
+60453,Oak Lawn,Southwest,100,IL_Cook,NA
+60454,Oak Lawn,Southwest,100,IL_Cook,PO Boxes
+60455,Bridgeview,Southwest,100,IL_Cook,NA
+60456,Hometown,Southwest,100,IL_Cook,NA
+60457,Hickory Hills,Southwest,100,IL_Cook,NA
+60458,Justice,Southwest,100,IL_Cook,NA
+60459,Burbank,OOJ,100,IL_Cook,NA
+60461,Olympia Fields,South,100,IL_Cook,NA
+60462,Orland Park,Southwest,100,IL_Cook,NA
+60463,Palos Heights,Southwest,100,IL_Cook,NA
+60464,Palos Park,Southwest,100,IL_Cook,NA
+60465,Palos Hills,Southwest,100,IL_Cook,NA
+60466,Park Forest,South,83.54,IL_Cook,NA
+60467,Orland Park,Southwest,88.08,IL_Cook,NA
+60469,Posen,South,100,IL_Cook,NA
+60471,Richton Park,South,99.27,IL_Cook,NA
+60472,Robbins,South,100,IL_Cook,NA
+60473,South Holland,South,100,IL_Cook,NA
+60475,Steger,South,41.18,IL_Cook,NA
+60476,Thornton,South,100,IL_Cook,NA
+60477,Tinley Park,South,97.88,IL_Cook,NA
+60478,Country Club Hills,South,100,IL_Cook,NA
+60480,Willow Springs,Southwest,100,IL_Cook,NA
+60482,Worth,Southwest,100,IL_Cook,NA
+60487,Tinley Park,South,80.68,IL_Cook,NA
+60499,Bedford Park,Southwest,100,IL_Cook,PO Boxes
+60501,Summit Argo,Southwest,100,IL_Cook,NA
+60513,Brookfield,West,100,IL_Cook,NA
+60521,Hinsdale,West,7.36,IL_DuPage,NA
+60523,Oak Brook,OOJ,0.13,IL_DuPage,NA
+60525,La Grange,West,100,IL_Cook,NA
+60526,La Grange Park,West,100,IL_Cook,NA
+60527,Willowbrook,OOJ,11.29,IL_DuPage,NA
+60534,Lyons,West,100,IL_Cook,NA
+60546,Riverside,West,100,IL_Cook,NA
+60558,Western Springs,West,100,IL_Cook,NA
+60601,Chicago,OOJ,100,IL_Chicago,NA
+60602,Chicago,OOJ,100,IL_Chicago,NA
+60603,Chicago,OOJ,100,IL_Chicago,NA
+60604,Chicago,OOJ,100,IL_Chicago,NA
+60605,Chicago,OOJ,100,IL_Chicago,NA
+60606,Chicago,OOJ,100,IL_Chicago,NA
+60607,Chicago,OOJ,100,IL_Chicago,NA
+60608,Chicago,OOJ,100,IL_Chicago,NA
+60609,Chicago,OOJ,100,IL_Chicago,NA
+60610,Chicago,OOJ,100,IL_Chicago,NA
+60611,Chicago,OOJ,100,IL_Chicago,NA
+60612,Chicago,OOJ,100,IL_Chicago,NA
+60613,Chicago,OOJ,100,IL_Chicago,NA
+60614,Chicago,OOJ,100,IL_Chicago,NA
+60615,Chicago,OOJ,100,IL_Chicago,NA
+60616,Chicago,OOJ,100,IL_Chicago,NA
+60617,Chicago,OOJ,100,IL_Chicago,NA
+60618,Chicago,OOJ,100,IL_Chicago,NA
+60619,Chicago,OOJ,100,IL_Chicago,NA
+60620,Chicago,OOJ,100,IL_Chicago,NA
+60621,Chicago,OOJ,100,IL_Chicago,NA
+60622,Chicago,OOJ,100,IL_Chicago,NA
+60623,Chicago,OOJ,100,IL_Chicago,NA
+60624,Chicago,OOJ,100,IL_Chicago,NA
+60625,Chicago,OOJ,100,IL_Chicago,NA
+60626,Chicago,OOJ,100,IL_Chicago,NA
+60628,Chicago,OOJ,100,IL_Chicago,NA
+60629,Chicago,OOJ,100,IL_Chicago,NA
+60630,Chicago,OOJ,100,IL_Chicago,NA
+60631,Chicago,OOJ,100,IL_Chicago,NA
+60632,Chicago,OOJ,100,IL_Chicago,NA
+60633,Chicago,OOJ,100,IL_Chicago,NA
+60634,Chicago,OOJ,100,IL_Chicago,NA
+60636,Chicago,OOJ,100,IL_Chicago,NA
+60637,Chicago,OOJ,100,IL_Chicago,NA
+60638,Chicago,OOJ,100,IL_Chicago,NA
+60639,Chicago,OOJ,100,IL_Chicago,NA
+60640,Chicago,OOJ,100,IL_Chicago,NA
+60641,Chicago,OOJ,100,IL_Chicago,NA
+60642,Chicago,OOJ,100,IL_Chicago,NA
+60643,Chicago,OOJ,100,IL_Chicago,NA
+60644,Chicago,OOJ,100,IL_Chicago,NA
+60645,Chicago,OOJ,100,IL_Chicago,NA
+60646,Chicago,OOJ,100,IL_Chicago,NA
+60647,Chicago,OOJ,100,IL_Chicago,NA
+60649,Chicago,OOJ,100,IL_Chicago,NA
+60651,Chicago,OOJ,100,IL_Chicago,NA
+60652,Chicago,OOJ,100,IL_Chicago,NA
+60653,Chicago,OOJ,100,IL_Chicago,NA
+60654,Chicago,OOJ,100,IL_Chicago,NA
+60655,Chicago,OOJ,100,IL_Chicago,NA
+60656,Chicago,OOJ,100,IL_Chicago,NA
+60657,Chicago,OOJ,100,IL_Chicago,NA
+60659,Chicago,OOJ,100,IL_Chicago,NA
+60660,Chicago,OOJ,100,IL_Chicago,NA
+60661,Chicago,OOJ,100,IL_Chicago,NA
+60664,Chicago,OOJ,100,IL_Chicago,PO Boxes
+60666,Chicago,OOJ,100,IL_Chicago,PO Boxes
+60668,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60669,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60670,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60673,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60674,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60675,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60677,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60678,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60680,Chicago,OOJ,100,IL_Chicago,PO Boxes
+60681,Chicago,OOJ,100,IL_Chicago,PO Boxes
+60682,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60684,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60685,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60686,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60687,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60688,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60689,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60690,Chicago,OOJ,100,IL_Chicago,PO Boxes
+60691,Chicago,OOJ,100,IL_Chicago,PO Boxes
+60693,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60694,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60695,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60696,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60697,Chicago,OOJ,100,IL_Chicago,specific company or organization
+60699,Chicago,OOJ,100,IL_Chicago,NA
+60701,Chicago,OOJ,100,IL_Cook,incorrect NSSP region assignment
+60706,Harwood Heights,West,100,IL_Cook,NA
+60707,Elmwood Park,West,100,IL_Cook,NA
+60712,Lincolnwood,North,100,IL_Cook,NA
+60714,Niles,North,100,IL_Cook,NA
+60803,Alsip,Southwest,100,IL_Cook,NA
+60804,Cicero,West,100,IL_Cook,NA
+60805,Evergreen Park,Southwest,100,IL_Cook,NA
+60827,Riverdale,South,100,IL_Cook,NA
+60663,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
+60665,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
+60667,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
+60671,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
+60679,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
+60683,NA,NA,NA,IL_Chicago,from NSSP list but not valid per USPS look up
+60011,Barrington,North,NA,IL_Cook,PO Boxes
+60209,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
+60290,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
+60398,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
+60570,NA,NA,NA,IL_Cook,from NSSP list but not valid per USPS look up
+60035,Highland Park,OOJ,NA,IL_Lake,from BOT list but no addresses in Cook per melissa data
+60047,Lake Zurich,OOJ,NA,IL_Lake,from BOT list but no addresses in Cook per melissa data
+60106,Bensenville,OOJ,NA,IL_DuPage,from BOT list but no addresses in Cook per melissa data
+60110,Carpentersville,OOJ,NA,IL_Kane,from BOT list but no addresses in Cook per melissa data
+60118,Dundee,OOJ,NA,IL_Kane,from BOT list but no addresses in Cook per melissa data
+60143,Itasca,OOJ,NA,IL_DuPage,from BOT list but no addresses in Cook per melissa data
+60191,Wood Dale,OOJ,NA,IL_DuPage,from BOT list but no addresses in Cook per melissa data
+60417,Crete,OOJ,NA,IL_Will,from BOT list but no addresses in Cook per melissa data
+60441,Lockport,OOJ,NA,IL_Will,from BOT list but no addresses in Cook per melissa data
+60448,Mokena,OOJ,NA,IL_Will,from BOT list but no addresses in Cook per melissa data
+60491,Homer Glen,OOJ,NA,IL_Will,from BOT list but no addresses in Cook per melissa data
